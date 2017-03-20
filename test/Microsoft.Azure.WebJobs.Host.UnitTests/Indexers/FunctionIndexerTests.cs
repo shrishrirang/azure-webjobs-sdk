@@ -133,6 +133,23 @@ namespace Microsoft.Azure.WebJobs.Host.UnitTests.Indexers
         }
 
         [Fact]
+        public void IndexMethod_RespectFunctionNameAttribute()
+        {
+            // Arrange
+            var method = typeof(FunctionIndexerTests).GetMethod("ActualFunctionName");
+            const string expectedName = "expectedFunctionName";
+            Mock<IFunctionIndexCollector> indexMock = new Mock<IFunctionIndexCollector>();
+            indexMock.Setup(i => i.Add(It.IsAny<IFunctionDefinition>(), It.IsAny<FunctionDescriptor>(), It.IsAny<MethodInfo>()));
+            FunctionIndexer product = CreateProductUnderTest();
+
+            // Act
+            product.IndexMethodAsync(method, indexMock.Object, CancellationToken.None).GetAwaiter().GetResult();
+
+            // Verify
+            indexMock.Verify(i => i.Add(It.IsAny<IFunctionDefinition>(), It.Is<FunctionDescriptor>(fd => fd.FullName == expectedName && fd.ShortName == expectedName), It.IsAny<MethodInfo>()), Times.Once);
+        }
+
+        [Fact]
         public void IsJobMethod_ReturnsFalse_IfMethodHasUnresolvedGenericParameter()
         {
             // Arrange
@@ -371,6 +388,13 @@ namespace Microsoft.Azure.WebJobs.Host.UnitTests.Indexers
         public static async void ReturnAsyncVoid()
         {
             await Task.FromResult(0);
+        }
+
+        [FunctionName("expectedFunctionName")]
+        [NoAutomaticTrigger]
+        public static void ActualFunctionName()
+        {
+            throw new NotImplementedException();
         }
     }
 }
