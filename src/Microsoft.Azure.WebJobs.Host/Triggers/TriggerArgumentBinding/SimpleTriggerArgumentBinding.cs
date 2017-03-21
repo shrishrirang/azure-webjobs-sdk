@@ -15,10 +15,10 @@ namespace Microsoft.Azure.WebJobs.Host
         private readonly ITriggerBindingStrategy<TMessage, TTriggerValue> _hooks;
         private readonly IConverterManager _converterManager;
 
-        public SimpleTriggerArgumentBinding(ITriggerBindingStrategy<TMessage, TTriggerValue> hooks, IConverterManager converterManager)
+        public SimpleTriggerArgumentBinding(ITriggerBindingStrategy<TMessage, TTriggerValue> hooks, IConverterManager converterManager, bool isSingleDispatch = true)
         {
             this._hooks = hooks;
-            this.Contract = Hooks.GetStaticBindingContract();
+            this.Contract = Hooks.GetStaticBindingContract(isSingleDispatch);
             this.ElementType = typeof(TMessage);
             _converterManager = converterManager;
         }

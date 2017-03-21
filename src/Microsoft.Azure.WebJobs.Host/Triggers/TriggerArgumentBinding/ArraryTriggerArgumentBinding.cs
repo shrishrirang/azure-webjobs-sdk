@@ -16,7 +16,7 @@ namespace Microsoft.Azure.WebJobs.Host
         public ArrayTriggerArgumentBinding(
             ITriggerBindingStrategy<TMessage, TTriggerValue> hooks,
             SimpleTriggerArgumentBinding<TMessage, TTriggerValue> innerBinding,
-            IConverterManager converterManager) : base(hooks, converterManager)
+            IConverterManager converterManager) : base(hooks, converterManager, false)
         {
             this._innerBinding = innerBinding;
         }

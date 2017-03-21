@@ -37,7 +37,7 @@ namespace Microsoft.Azure.WebJobs.Host.UnitTests
             return new Dictionary<string, object>();
         }
 
-        public Dictionary<string, Type> GetStaticBindingContract()
+        public Dictionary<string, Type> GetStaticBindingContract(bool single)
         {
             // No contract exposed
             return new Dictionary<string, Type>();

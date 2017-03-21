@@ -44,12 +44,8 @@ namespace Microsoft.Azure.WebJobs.ServiceBus
 
         // Get the static binding contract
         //  - gets augmented 
-        public Dictionary<string, Type> GetStaticBindingContract()
+        public Dictionary<string, Type> GetStaticBindingContract(bool isSingleDispatch = true)
         {
-            // TODO: need to be able to determine here if we're single dispatch
-            // https://github.com/Azure/azure-webjobs-sdk/issues/1072
-            bool isSingleDispatch = true;
-
             return GetBindingContract(isSingleDispatch);
         }
 
@@ -58,8 +54,6 @@ namespace Microsoft.Azure.WebJobs.ServiceBus
             Dictionary<string, Type> contract = new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase);
             contract.Add("PartitionContext", typeof(PartitionContext));
 
-            // TODO: need to be able to determine here if we're single dispatch
-            // https://github.com/Azure/azure-webjobs-sdk/issues/1072
             if (isSingleDispatch)
             {
                 AddBindingContractMember(contract, "PartitionKey", typeof(string), isSingleDispatch);
