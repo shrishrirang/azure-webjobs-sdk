@@ -27,9 +27,6 @@ namespace Microsoft.Azure.WebJobs
         /// <summary>
         /// Gets the function name.
         /// </summary>
-        public string Name
-        {
-            get { return _name; }
-        }
+        public string Name => _name;
     }
 }
