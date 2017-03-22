@@ -16,9 +16,7 @@ namespace Microsoft.Azure.WebJobs.Host.Indexers
                 throw new ArgumentNullException("methodInfo");
             }
 
-            return TryGetCustomName(methodInfo, out string customName)
-                ? customName
-                : String.Format(CultureInfo.InvariantCulture, "{0}.{1}", methodInfo.DeclaringType.FullName, methodInfo.Name);
+            return String.Format(CultureInfo.InvariantCulture, "{0}.{1}", methodInfo.DeclaringType.FullName, methodInfo.Name);
         }
 
         public static string GetShortName(this MethodInfo methodInfo)
@@ -28,15 +26,7 @@ namespace Microsoft.Azure.WebJobs.Host.Indexers
                 throw new ArgumentNullException("methodInfo");
             }
 
-            return TryGetCustomName(methodInfo, out string customName)
-                ? customName
-                : String.Format(CultureInfo.InvariantCulture, "{0}.{1}", methodInfo.DeclaringType.Name, methodInfo.Name);
-        }
-
-        private static bool TryGetCustomName(MethodInfo methodInfo, out string customName)
-        {
-            customName = methodInfo.GetCustomAttribute<FunctionNameAttribute>()?.Name;
-            return !String.IsNullOrEmpty(customName);
+            return String.Format(CultureInfo.InvariantCulture, "{0}.{1}", methodInfo.DeclaringType.Name, methodInfo.Name);
         }
     }
 }
