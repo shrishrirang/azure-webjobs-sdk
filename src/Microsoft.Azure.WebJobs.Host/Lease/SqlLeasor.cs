@@ -4,6 +4,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Azure.WebJobs.Host.Lease;
 
 // FIXME: fix this whole file
 namespace Microsoft.Azure.WebJobs.Host.Sql
@@ -14,14 +15,34 @@ namespace Microsoft.Azure.WebJobs.Host.Sql
         {
         }
 
-        public Task<string> TryAcquireLeaseAsync(string leaseNamespace, string leaseId, TimeSpan leasePeriod, CancellationToken cancellationToken)
+        public Task<string> TryAcquireLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }
 
-        public static bool TryParse(string leasorConnectionString, out ILeasor leasor)
+        public Task WriteLeaseBlobMetadata(LeaseDefinition leaseDefinition, string key,
+            string value, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task ReleaseLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task ReadLeaseBlobMetadata(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public static bool TryGetAccountAsync(string accountName, out ILeasor leasor)
         {
             leasor = null;
+            var connectionString = AmbientConnectionStringProvider.Instance.GetConnectionString(accountName);
+            if (string.IsNullOrWhiteSpace(connectionString))
+                return false;
+
             return false;
         }
     }

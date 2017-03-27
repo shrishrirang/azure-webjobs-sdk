@@ -2,23 +2,238 @@
 // Licensed under the MIT License. See License.txt in the project root for license information.
 
 using System;
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Azure.WebJobs.Host.Executors;
+using Microsoft.Azure.WebJobs.Host.Lease;
+using Microsoft.Azure.WebJobs.Host.Storage.Blob;
+using Microsoft.WindowsAzure.Storage;
 
 namespace Microsoft.Azure.WebJobs.Host.Storage
 {
     internal class BlobLeasor : ILeasor
     {
-        private IStorageAccount _storageAccount;
+        private IStorageAccountProvider _storageAccountProvider;
+        private ConcurrentDictionary<string, IStorageBlobDirectory> _lockDirectoryMap = new ConcurrentDictionary<string, IStorageBlobDirectory>(StringComparer.OrdinalIgnoreCase);
 
-        public BlobLeasor(IStorageAccount storageAccount)
+        public BlobLeasor(IStorageAccountProvider storageAccountProvider)
         {
-            _storageAccount = storageAccount;
+            _storageAccountProvider = storageAccountProvider;
         }
 
-        public Task<string> TryAcquireLeaseAsync(string leaseNamespace, string leaseId, TimeSpan leasePeriod, CancellationToken cancellationToken)
+        private IStorageBlockBlob GetBlob(LeaseDefinition leaseDefinition)
         {
-            throw new NotImplementedException();
+            IStorageBlobDirectory lockDirectory = GetLockDirectory(leaseDefinition.AccountName, leaseDefinition.Namespace, leaseDefinition.Category);
+            return lockDirectory.GetBlockBlobReference(leaseDefinition.Id);
+        }
+
+        public async Task<string> TryAcquireLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
+        {
+            IStorageBlockBlob lockBlob = GetBlob(leaseDefinition);
+
+            //leaseId = await TryAcquireLeaseAsync(lockBlob, lockPeriod, cancellationToken);
+            bool blobDoesNotExist = false;
+            try
+            {
+                // Optimistically try to acquire the lease. The blob may not yet
+                // exist. If it doesn't we handle the 404, create it, and retry below
+                return await lockBlob.AcquireLeaseAsync(leaseDefinition.Period, null, cancellationToken);
+            }
+            catch (StorageException exception)
+            {
+                if (exception.RequestInformation != null)
+                {
+                    if (exception.RequestInformation.HttpStatusCode == 409)
+                    {
+                        return null;
+                    }
+                    else if (exception.RequestInformation.HttpStatusCode == 404)
+                    {
+                        blobDoesNotExist = true;
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
+                else
+                {
+                    throw;
+                }
+            }
+
+            if (blobDoesNotExist)
+            {
+                await TryCreateAsync(lockBlob, cancellationToken);
+
+                try
+                {
+                    return await lockBlob.AcquireLeaseAsync(leaseDefinition.Period, null, cancellationToken);
+                }
+                catch (StorageException exception)
+                {
+                    if (exception.RequestInformation != null &&
+                        exception.RequestInformation.HttpStatusCode == 409)
+                    {
+                        return null;
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        public async Task WriteLeaseBlobMetadata(LeaseDefinition leaseDefinition, string key, string value, CancellationToken cancellationToken)
+        {
+            IStorageBlockBlob lockBlob = GetBlob(leaseDefinition);
+            lockBlob.Metadata.Add(key, value);
+
+            await lockBlob.SetMetadataAsync(
+                accessCondition: new AccessCondition { LeaseId = leaseDefinition.Id },
+                options: null,
+                operationContext: null,
+                cancellationToken: cancellationToken);
+        }
+
+        public async Task ReleaseLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
+        {
+            try
+            {
+                IStorageBlockBlob blob = GetBlob(leaseDefinition);
+                // Note that this call returns without throwing if the lease is expired. See the table at:
+                // http://msdn.microsoft.com/en-us/library/azure/ee691972.aspx
+                await blob.ReleaseLeaseAsync(
+                    accessCondition: new AccessCondition { LeaseId = leaseDefinition.Id },
+                    options: null,
+                    operationContext: null,
+                    cancellationToken: cancellationToken);
+            }
+            catch (StorageException exception)
+            {
+                if (exception.RequestInformation != null)
+                {
+                    if (exception.RequestInformation.HttpStatusCode == 404 ||
+                        exception.RequestInformation.HttpStatusCode == 409)
+                    {
+                        // if the blob no longer exists, or there is another lease
+                        // now active, there is nothing for us to release so we can
+                        // ignore
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
+                else
+                {
+                    throw;
+                }
+            }
+        }
+
+        public async Task ReadLeaseBlobMetadata(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
+        {
+            try
+            {
+                IStorageBlob blob = GetBlob(leaseDefinition);
+                await blob.FetchAttributesAsync(cancellationToken);
+            }
+            catch (StorageException exception)
+            {
+                if (exception.RequestInformation != null &&
+                    exception.RequestInformation.HttpStatusCode == 404)
+                {
+                    // the blob no longer exists
+                }
+                else
+                {
+                    throw;
+                }
+            }
+        }
+
+        private static async Task<bool> TryCreateAsync(IStorageBlockBlob blob, CancellationToken cancellationToken)
+        {
+            bool isContainerNotFoundException = false;
+
+            try
+            {
+                await blob.UploadTextAsync(string.Empty, cancellationToken: cancellationToken);
+                return true;
+            }
+            catch (StorageException exception)
+            {
+                if (exception.RequestInformation != null)
+                {
+                    if (exception.RequestInformation.HttpStatusCode == 404)
+                    {
+                        isContainerNotFoundException = true;
+                    }
+                    else if (exception.RequestInformation.HttpStatusCode == 409 ||
+                             exception.RequestInformation.HttpStatusCode == 412)
+                    {
+                        // The blob already exists, or is leased by someone else
+                        return false;
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
+                else
+                {
+                    throw;
+                }
+            }
+
+            Debug.Assert(isContainerNotFoundException);
+            await blob.Container.CreateIfNotExistsAsync(cancellationToken);
+
+            try
+            {
+                await blob.UploadTextAsync(string.Empty, cancellationToken: cancellationToken);
+                return true;
+            }
+            catch (StorageException exception)
+            {
+                if (exception.RequestInformation != null &&
+                    (exception.RequestInformation.HttpStatusCode == 409 || exception.RequestInformation.HttpStatusCode == 412))
+                {
+                    // The blob already exists, or is leased by someone else
+                    return false;
+                }
+                else
+                {
+                    throw;
+                }
+            }
+        }
+
+
+
+
+        private IStorageBlobDirectory GetLockDirectory(string accountName, string leaseNamespace, string leaseCategory)
+        {
+            IStorageBlobDirectory storageDirectory = null;
+            if (!_lockDirectoryMap.TryGetValue(accountName, out storageDirectory))
+            {
+                Task<IStorageAccount> task = _storageAccountProvider.GetAccountAsync(accountName, CancellationToken.None);
+                IStorageAccount storageAccount = task.Result;
+                // singleton requires block blobs, cannot be premium
+                storageAccount.AssertTypeOneOf(StorageAccountType.GeneralPurpose, StorageAccountType.BlobOnly);
+                IStorageBlobClient blobClient = storageAccount.CreateBlobClient();
+                storageDirectory = blobClient.GetContainerReference(leaseNamespace)
+                                       .GetDirectoryReference(leaseCategory);
+                _lockDirectoryMap[accountName] = storageDirectory;
+            }
+
+            return storageDirectory;
         }
     }
 }

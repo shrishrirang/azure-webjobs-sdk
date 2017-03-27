@@ -411,9 +411,10 @@
     <Compile Include="FuncConverter.cs" />
     <Compile Include="FunctionTimeoutException.cs" />
     <Compile Include="Exceptions\RecoverableException.cs" />
-    <Compile Include="ILeasor.cs" />
+    <Compile Include="Lease\ILeasor.cs" />
     <Compile Include="JobHostBlobsConfiguration.cs" />
     <Compile Include="Lease\BlobLeasor.cs" />
+    <Compile Include="Lease\LeaseDefinition.cs" />
     <Compile Include="Lease\LeasorFactory.cs" />
     <Compile Include="Lease\SqlLeasor.cs" />
     <Compile Include="Listeners\FunctionListener.cs" />

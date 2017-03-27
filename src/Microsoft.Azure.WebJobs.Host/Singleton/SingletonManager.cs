@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using Microsoft.Azure.WebJobs.Host.Bindings;
 using Microsoft.Azure.WebJobs.Host.Bindings.Path;
 using Microsoft.Azure.WebJobs.Host.Executors;
+using Microsoft.Azure.WebJobs.Host.Lease;
 using Microsoft.Azure.WebJobs.Host.Listeners;
 using Microsoft.Azure.WebJobs.Host.Storage;
 using Microsoft.Azure.WebJobs.Host.Storage.Blob;
@@ -37,13 +38,14 @@ namespace Microsoft.Azure.WebJobs.Host
         private TraceWriter _trace;
         private IHostIdProvider _hostIdProvider;
         private string _hostId;
+        private ILeasor _leasor;
 
         // For mock testing only
         internal SingletonManager()
         {
         }
 
-        public SingletonManager(IStorageAccountProvider accountProvider, IWebJobsExceptionHandler exceptionHandler, SingletonConfiguration config, TraceWriter trace, IHostIdProvider hostIdProvider, INameResolver nameResolver = null)
+        public SingletonManager(IStorageAccountProvider accountProvider, IWebJobsExceptionHandler exceptionHandler, SingletonConfiguration config, TraceWriter trace, IHostIdProvider hostIdProvider, INameResolver nameResolver = null, ILeasor leasor = null)
         {
             _accountProvider = accountProvider;
             _nameResolver = nameResolver;
@@ -51,6 +53,7 @@ namespace Microsoft.Azure.WebJobs.Host
             _config = config;
             _trace = trace;
             _hostIdProvider = hostIdProvider;
+            _leasor = leasor; // FIXME: remove param accountProvider
         }
 
         internal virtual SingletonConfiguration Config
@@ -105,8 +108,18 @@ namespace Microsoft.Azure.WebJobs.Host
         {
             IStorageBlobDirectory lockDirectory = GetLockDirectory(attribute.Account);
             IStorageBlockBlob lockBlob = lockDirectory.GetBlockBlobReference(lockId);
+
             TimeSpan lockPeriod = GetLockPeriod(attribute, _config);
-            string leaseId = await TryAcquireLeaseAsync(lockBlob, lockPeriod, cancellationToken);
+            var leaseDefinition = new LeaseDefinition
+            {
+                AccountName = attribute.Account,
+                Namespace = HostContainerNames.Hosts,
+                Category = HostDirectoryNames.SingletonLocks,
+                Id = lockId,
+                Period = lockPeriod
+            };
+
+            string leaseId = await _leasor.TryAcquireLeaseAsync(leaseDefinition, cancellationToken);
             if (string.IsNullOrEmpty(leaseId) && retry)
             {
                 // Someone else has the lease. Continue trying to periodically get the lease for
@@ -120,7 +133,9 @@ namespace Microsoft.Azure.WebJobs.Host
                 {
                     await Task.Delay(_config.LockAcquisitionPollingInterval);
                     timeWaited += _config.LockAcquisitionPollingInterval;
-                    leaseId = await TryAcquireLeaseAsync(lockBlob, lockPeriod, cancellationToken);
+                    // FIXME: check logic - null lockid.. ? also, check the whole logic
+                    leaseDefinition.Id = null;
+                    leaseId = await _leasor.TryAcquireLeaseAsync(leaseDefinition, cancellationToken);
                 }
             }
 
@@ -133,14 +148,15 @@ namespace Microsoft.Azure.WebJobs.Host
 
             if (!string.IsNullOrEmpty(functionInstanceId))
             {
-                await WriteLeaseBlobMetadata(lockBlob, leaseId, functionInstanceId, cancellationToken);
+                leaseDefinition.Id = lockId; // FIXME: check this.. lockId, leaseId or null???
+                await _leasor.WriteLeaseBlobMetadata(leaseDefinition, FunctionInstanceMetadataKey, functionInstanceId,
+                    cancellationToken);
             }
 
             SingletonLockHandle lockHandle = new SingletonLockHandle
             {
-                LeaseId = leaseId,
                 LockId = lockId,
-                Blob = lockBlob,
+                LeaseDefinition = leaseDefinition, // FIXME: review the whole refactoring in this file. what is lease id, lock id, difference?
                 LeaseRenewalTimer = CreateLeaseRenewalTimer(lockBlob, leaseId, lockId, lockPeriod, _exceptionHandler)
             };
 
@@ -160,7 +176,11 @@ namespace Microsoft.Azure.WebJobs.Host
                 await singletonLockHandle.LeaseRenewalTimer.StopAsync(cancellationToken);
             }
 
-            await ReleaseLeaseAsync(singletonLockHandle.Blob, singletonLockHandle.LeaseId, cancellationToken);
+            var leaseDefinition = new LeaseDefinition
+            {
+
+            };
+            await _leasor.ReleaseLeaseAsync(singletonLockHandle.LeaseDefinition, cancellationToken);
 
             _trace.Verbose(string.Format(CultureInfo.InvariantCulture, "Singleton lock released ({0})", singletonLockHandle.LockId), source: TraceSource.Execution);
         }
@@ -299,7 +319,15 @@ namespace Microsoft.Azure.WebJobs.Host
             IStorageBlobDirectory lockDirectory = GetLockDirectory(attribute.Account);
             IStorageBlockBlob lockBlob = lockDirectory.GetBlockBlobReference(lockId);
 
-            await ReadLeaseBlobMetadata(lockBlob, cancellationToken);
+            var leaseDefinition = new LeaseDefinition
+            {
+                AccountName = attribute.Account,
+                Namespace = HostContainerNames.Hosts,
+                Category = HostDirectoryNames.SingletonLocks,
+                Id = lockId,
+            };
+
+            await _leasor.ReadLeaseBlobMetadata(leaseDefinition, cancellationToken);
 
             // if the lease is Available, then there is no current owner
             // (any existing owner value is the last owner that held the lease)
@@ -355,191 +383,11 @@ namespace Microsoft.Azure.WebJobs.Host
             return new TaskSeriesTimer(command, exceptionHandler, Task.Delay(normalUpdateInterval));
         }
 
-        private static async Task<string> TryAcquireLeaseAsync(IStorageBlockBlob blob, TimeSpan leasePeriod, CancellationToken cancellationToken)
-        {
-            bool blobDoesNotExist = false;
-            try
-            {
-                // Optimistically try to acquire the lease. The blob may not yet
-                // exist. If it doesn't we handle the 404, create it, and retry below
-                return await blob.AcquireLeaseAsync(leasePeriod, null, cancellationToken);
-            }
-            catch (StorageException exception)
-            {
-                if (exception.RequestInformation != null)
-                {
-                    if (exception.RequestInformation.HttpStatusCode == 409)
-                    {
-                        return null;
-                    }
-                    else if (exception.RequestInformation.HttpStatusCode == 404)
-                    {
-                        blobDoesNotExist = true;
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            if (blobDoesNotExist)
-            {
-                await TryCreateAsync(blob, cancellationToken);
-
-                try
-                {
-                    return await blob.AcquireLeaseAsync(leasePeriod, null, cancellationToken);
-                }
-                catch (StorageException exception)
-                {
-                    if (exception.RequestInformation != null &&
-                        exception.RequestInformation.HttpStatusCode == 409)
-                    {
-                        return null;
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        private static async Task ReleaseLeaseAsync(IStorageBlockBlob blob, string leaseId, CancellationToken cancellationToken)
-        {
-            try
-            {
-                // Note that this call returns without throwing if the lease is expired. See the table at:
-                // http://msdn.microsoft.com/en-us/library/azure/ee691972.aspx
-                await blob.ReleaseLeaseAsync(
-                    accessCondition: new AccessCondition { LeaseId = leaseId },
-                    options: null,
-                    operationContext: null,
-                    cancellationToken: cancellationToken);
-            }
-            catch (StorageException exception)
-            {
-                if (exception.RequestInformation != null)
-                {
-                    if (exception.RequestInformation.HttpStatusCode == 404 ||
-                        exception.RequestInformation.HttpStatusCode == 409)
-                    {
-                        // if the blob no longer exists, or there is another lease
-                        // now active, there is nothing for us to release so we can
-                        // ignore
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                else
-                {
-                    throw;
-                }
-            }
-        }
-
-        private static async Task<bool> TryCreateAsync(IStorageBlockBlob blob, CancellationToken cancellationToken)
-        {
-            bool isContainerNotFoundException = false;
-
-            try
-            {
-                await blob.UploadTextAsync(string.Empty, cancellationToken: cancellationToken);
-                return true;
-            }
-            catch (StorageException exception)
-            {
-                if (exception.RequestInformation != null)
-                {
-                    if (exception.RequestInformation.HttpStatusCode == 404)
-                    {
-                        isContainerNotFoundException = true;
-                    }
-                    else if (exception.RequestInformation.HttpStatusCode == 409 ||
-                             exception.RequestInformation.HttpStatusCode == 412)
-                    {
-                        // The blob already exists, or is leased by someone else
-                        return false;
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            Debug.Assert(isContainerNotFoundException);
-            await blob.Container.CreateIfNotExistsAsync(cancellationToken);
-
-            try
-            {
-                await blob.UploadTextAsync(string.Empty, cancellationToken: cancellationToken);
-                return true;
-            }
-            catch (StorageException exception)
-            {
-                if (exception.RequestInformation != null &&
-                    (exception.RequestInformation.HttpStatusCode == 409 || exception.RequestInformation.HttpStatusCode == 412))
-                {
-                    // The blob already exists, or is leased by someone else
-                    return false;
-                }
-                else
-                {
-                    throw;
-                }
-            }
-        }
-
-        private static async Task WriteLeaseBlobMetadata(IStorageBlockBlob blob, string leaseId, string functionInstanceId, CancellationToken cancellationToken)
-        {
-            blob.Metadata.Add(FunctionInstanceMetadataKey, functionInstanceId);
-
-            await blob.SetMetadataAsync(
-                accessCondition: new AccessCondition { LeaseId = leaseId },
-                options: null,
-                operationContext: null,
-                cancellationToken: cancellationToken);
-        }
-
-        private static async Task ReadLeaseBlobMetadata(IStorageBlockBlob blob, CancellationToken cancellationToken)
-        {
-            try
-            {
-                await blob.FetchAttributesAsync(cancellationToken);
-            }
-            catch (StorageException exception)
-            {
-                if (exception.RequestInformation != null &&
-                    exception.RequestInformation.HttpStatusCode == 404)
-                {
-                    // the blob no longer exists
-                }
-                else
-                {
-                    throw;
-                }
-            }
-        }
-
         internal class SingletonLockHandle
         {
-            public string LeaseId { get; set; }
             public string LockId { get; set; }
             public IStorageBlockBlob Blob { get; set; }
+            public LeaseDefinition LeaseDefinition { get; set; }
             public ITaskSeriesTimer LeaseRenewalTimer { get; set; }
         }
 

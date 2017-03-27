@@ -10,15 +10,15 @@ namespace Microsoft.Azure.WebJobs.Host
 {
     internal class LeasorFactory
     {
-        public static ILeasor CreateLeasor(string connectionString, IStorageAccountProvider storageAccountProvider)
+        public static ILeasor CreateLeasor(string accountName, IStorageAccountProvider storageAccountProvider)
         {
             ILeasor leasor = null;
-            SqlLeasor.TryParse(connectionString, out leasor);
+            SqlLeasor.TryGetAccountAsync(accountName, out leasor);
 
             if (leasor == null)
             {
-                var storageAccount = storageAccountProvider.TryGetAccountAsync(connectionString, new CancellationToken()).Result;
-                leasor = new BlobLeasor(storageAccount);
+                var storageAccount = storageAccountProvider.TryGetAccountAsync(accountName, new CancellationToken()).Result;
+                leasor = new BlobLeasor(storageAccountProvider);
             }
 
             return leasor;
