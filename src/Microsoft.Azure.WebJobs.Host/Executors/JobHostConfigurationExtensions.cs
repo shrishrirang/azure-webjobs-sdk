@@ -108,7 +108,7 @@ namespace Microsoft.Azure.WebJobs.Host.Executors
 
             if (singletonManager == null)
             {
-                singletonManager = new SingletonManager(storageAccountProvider, exceptionHandler, config.Singleton, trace, hostIdProvider, services.GetService<INameResolver>());
+                singletonManager = new SingletonManager(storageAccountProvider, exceptionHandler, config.Singleton, trace, hostIdProvider, services.GetService<INameResolver>(), services.GetService<ILeasor>());
                 services.AddService<SingletonManager>(singletonManager);
             }
 
@@ -190,7 +190,16 @@ namespace Microsoft.Azure.WebJobs.Host.Executors
 
                 await WriteSiteExtensionManifestAsync(combinedCancellationToken);
 
-                IStorageAccount dashboardAccount = await storageAccountProvider.GetDashboardAccountAsync(combinedCancellationToken);
+                IStorageAccount dashboardAccount = null;
+                try
+                {
+                    dashboardAccount =
+                        await storageAccountProvider.GetDashboardAccountAsync(combinedCancellationToken);
+                }
+                catch
+                {
+                    
+                }
 
                 IHostInstanceLogger hostInstanceLogger = await hostInstanceLoggerProvider.GetAsync(combinedCancellationToken);
                 IFunctionInstanceLogger functionInstanceLogger = await functionInstanceLoggerProvider.GetAsync(combinedCancellationToken);                
