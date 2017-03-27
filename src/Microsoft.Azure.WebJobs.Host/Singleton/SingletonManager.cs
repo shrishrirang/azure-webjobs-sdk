@@ -14,6 +14,7 @@ using Microsoft.Azure.WebJobs.Host.Bindings;
 using Microsoft.Azure.WebJobs.Host.Bindings.Path;
 using Microsoft.Azure.WebJobs.Host.Executors;
 using Microsoft.Azure.WebJobs.Host.Listeners;
+using Microsoft.Azure.WebJobs.Host.Sql;
 using Microsoft.Azure.WebJobs.Host.Storage;
 using Microsoft.Azure.WebJobs.Host.Storage.Blob;
 using Microsoft.Azure.WebJobs.Host.Timers;
@@ -37,6 +38,8 @@ namespace Microsoft.Azure.WebJobs.Host
         private TraceWriter _trace;
         private IHostIdProvider _hostIdProvider;
         private string _hostId;
+
+        public static bool UseSql = true;
 
         // For mock testing only
         internal SingletonManager()
@@ -103,10 +106,21 @@ namespace Microsoft.Azure.WebJobs.Host
 
         public async virtual Task<object> TryLockAsync(string lockId, string functionInstanceId, SingletonAttribute attribute, CancellationToken cancellationToken, bool retry = true)
         {
-            IStorageBlobDirectory lockDirectory = GetLockDirectory(attribute.Account);
-            IStorageBlockBlob lockBlob = lockDirectory.GetBlockBlobReference(lockId);
-            TimeSpan lockPeriod = GetLockPeriod(attribute, _config);
-            string leaseId = await TryAcquireLeaseAsync(lockBlob, lockPeriod, cancellationToken);
+            if (UseSql)
+            {
+                var leasor = new SqlLeasor();
+                var leaseNamespace = GetLockNamespace(attribute.Account);
+                TimeSpan leasePeriod = GetLockPeriod(attribute, _config);
+                string id = await leasor.TryAcquireLeaseAsync(leaseNamespace, lockId, leasePeriod, cancellationToken);
+            }
+            //else
+            //{
+                IStorageBlobDirectory lockDirectory = GetLockDirectory(attribute.Account);
+                IStorageBlockBlob lockBlob = lockDirectory.GetBlockBlobReference(lockId);
+                TimeSpan lockPeriod = GetLockPeriod(attribute, _config);
+                string leaseId = await TryAcquireLeaseAsync(lockBlob, lockPeriod, cancellationToken);
+            //}
+
             if (string.IsNullOrEmpty(leaseId) && retry)
             {
                 // Someone else has the lease. Continue trying to periodically get the lease for
@@ -314,6 +328,18 @@ namespace Microsoft.Azure.WebJobs.Host
 
             return owner;
         }
+
+        private string GetLockNamespace(string accountName)
+        {
+            if (string.IsNullOrEmpty(accountName))
+            {
+                accountName = ConnectionStringNames.Storage;
+            }
+
+            return accountName;
+        }
+
+
 
         internal IStorageBlobDirectory GetLockDirectory(string accountName)
         {

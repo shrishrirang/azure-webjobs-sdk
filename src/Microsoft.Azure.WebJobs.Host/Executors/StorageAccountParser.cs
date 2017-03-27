@@ -13,7 +13,7 @@ namespace Microsoft.Azure.WebJobs.Host.Executors
     /// Utility class designed to parse given connection string and create instance of the
     /// <see cref="CloudStorageAccount"/>.
     /// </summary>
-    internal sealed class StorageAccountParser : IStorageAccountParser
+    internal sealed class StorageAccountParser : IStorageAccountParser // shrirs2
     {
         /// <summary>
         /// Throwing version of parse account API. It calls TryParseAccount internally, analyzes returned result,

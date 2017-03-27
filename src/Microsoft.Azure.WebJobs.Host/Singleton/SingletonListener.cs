@@ -57,7 +57,8 @@ namespace Microsoft.Azure.WebJobs.Host.Listeners
                 // down for whatever reason, others will have a chance to resume the work.
                 if (recoveryEnabled)
                 {
-                    LockTimer = new System.Timers.Timer(_singletonConfig.ListenerLockRecoveryPollingInterval.TotalMilliseconds);
+                    LockTimer = new System.Timers.Timer(45 * 1000);
+                    //LockTimer = new System.Timers.Timer(_singletonConfig.ListenerLockRecoveryPollingInterval.TotalMilliseconds);
                     LockTimer.Elapsed += OnLockTimer;
                     LockTimer.Start();
                 }

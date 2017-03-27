@@ -15,7 +15,7 @@ using Microsoft.WindowsAzure.Storage.Auth;
 
 namespace Microsoft.Azure.WebJobs.Host.Executors
 {
-    internal class DefaultStorageCredentialsValidator : IStorageCredentialsValidator
+    internal class DefaultStorageCredentialsValidator : IStorageCredentialsValidator // shrirs2
     {
         private readonly HashSet<StorageCredentials> _validatedCredentials = new HashSet<StorageCredentials>();
 

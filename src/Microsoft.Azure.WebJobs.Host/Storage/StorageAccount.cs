@@ -13,7 +13,7 @@ using Microsoft.WindowsAzure.Storage.Table;
 
 namespace Microsoft.Azure.WebJobs.Host.Storage
 {
-    internal class StorageAccount : IStorageAccount
+    internal class StorageAccount : IStorageAccount // shrirs2
     {
         private readonly CloudStorageAccount _sdkAccount;
         private readonly IServiceProvider _services;

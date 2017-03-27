@@ -190,7 +190,15 @@ namespace Microsoft.Azure.WebJobs.Host.Executors
 
                 await WriteSiteExtensionManifestAsync(combinedCancellationToken);
 
-                IStorageAccount dashboardAccount = await storageAccountProvider.GetDashboardAccountAsync(combinedCancellationToken);
+                IStorageAccount dashboardAccount = null;
+
+                try
+                {
+                    dashboardAccount = await storageAccountProvider.GetDashboardAccountAsync(combinedCancellationToken); // shrirs
+                }
+                catch
+                {
+                }
 
                 IHostInstanceLogger hostInstanceLogger = await hostInstanceLoggerProvider.GetAsync(combinedCancellationToken);
                 IFunctionInstanceLogger functionInstanceLogger = await functionInstanceLoggerProvider.GetAsync(combinedCancellationToken);                

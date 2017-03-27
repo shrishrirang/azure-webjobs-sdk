@@ -31,7 +31,7 @@
     <DocumentationFile>bin\Debug\Microsoft.Azure.WebJobs.Host.xml</DocumentationFile>
     <LangVersion>default</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <RunCodeAnalysis>true</RunCodeAnalysis>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
     <CodeAnalysisIgnoreGeneratedCode>true</CodeAnalysisIgnoreGeneratedCode>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
@@ -406,7 +406,9 @@
     <Compile Include="FuncConverter.cs" />
     <Compile Include="FunctionTimeoutException.cs" />
     <Compile Include="Exceptions\RecoverableException.cs" />
+    <Compile Include="ILeasor.cs" />
     <Compile Include="JobHostBlobsConfiguration.cs" />
+    <Compile Include="LeasorFactory.cs" />
     <Compile Include="Listeners\FunctionListener.cs" />
     <Compile Include="Loggers\TraceEventExtensions.cs" />
     <Compile Include="Exceptions\FunctionException.cs" />
@@ -429,6 +431,8 @@
     <Compile Include="Blobs\Listeners\ScanBlobScanLogHybridPollingStrategy.cs" />
     <Compile Include="Bindings\AsyncCollector\AsyncCollectorBinding.cs" />
     <Compile Include="Config\ExtensionConfigContextExtensions.cs" />
+    <Compile Include="Sql\SqlLeasor.cs" />
+    <Compile Include="Storage\StorageBlobLeasor.cs" />
     <Compile Include="Storage\IStorageAccountExtensions.cs" />
     <Compile Include="Storage\StorageAccountType.cs" />
     <Compile Include="Queues\PoisonQueueMessageEventArgs.cs" />

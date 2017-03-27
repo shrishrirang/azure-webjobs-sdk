@@ -4,12 +4,15 @@
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Threading;
 using Microsoft.Azure.WebJobs.Host;
 using Microsoft.Azure.WebJobs.Host.Bindings;
 using Microsoft.Azure.WebJobs.Host.Executors;
 using Microsoft.Azure.WebJobs.Host.Indexers;
 using Microsoft.Azure.WebJobs.Host.Loggers;
 using Microsoft.Azure.WebJobs.Host.Queues;
+using Microsoft.Azure.WebJobs.Host.Sql;
+using Microsoft.Azure.WebJobs.Host.Storage;
 using Microsoft.Azure.WebJobs.Host.Timers;
 
 namespace Microsoft.Azure.WebJobs
@@ -62,9 +65,18 @@ namespace Microsoft.Azure.WebJobs
             IConverterManager converterManager = new ConverterManager();
             IWebJobsExceptionHandler exceptionHandler = new WebJobsExceptionHandler();
 
+            var leasorConnectionString = AmbientConnectionStringProvider.Instance.GetConnectionString("Leasor");
+            if (!string.IsNullOrWhiteSpace(leasorConnectionString))
+            {
+                leasorConnectionString = dashboardAndStorageConnectionString; // FIXME: what if no storage connection strings are defined? that should be supported too. Introduce InMemoryLeasor that implements ILeasor.cs
+            }
+
+            ILeasor leasor = LeasorFactory.CreateLeasor(leasorConnectionString, _storageAccountProvider);
+
             AddService<IQueueConfiguration>(_queueConfiguration);
             AddService<IConsoleProvider>(ConsoleProvider);
             AddService<IStorageAccountProvider>(_storageAccountProvider);
+            AddService<ILeasor>(leasor);
             AddService<IExtensionRegistry>(extensions);
             AddService<StorageClientFactory>(new StorageClientFactory());
             AddService<INameResolver>(new DefaultNameResolver());

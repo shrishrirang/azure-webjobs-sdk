@@ -9,7 +9,7 @@ using Microsoft.Azure.WebJobs.Host.Storage;
 
 namespace Microsoft.Azure.WebJobs.Host.Executors
 {
-    internal class DefaultStorageAccountProvider : IStorageAccountProvider
+    internal class DefaultStorageAccountProvider : IStorageAccountProvider //shrirs2
     {
         private readonly IConnectionStringProvider _ambientConnectionStringProvider;
         private readonly IStorageCredentialsValidator _storageCredentialsValidator;
