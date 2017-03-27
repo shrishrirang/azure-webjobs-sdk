@@ -31,7 +31,7 @@ namespace Microsoft.Azure.WebJobs.Host
         private readonly INameResolver _nameResolver;
         private readonly IWebJobsExceptionHandler _exceptionHandler;
         private readonly SingletonConfiguration _config;
-        private ConcurrentDictionary<string, IStorageBlobDirectory> _lockDirectoryMap = new ConcurrentDictionary<string, IStorageBlobDirectory>(StringComparer.OrdinalIgnoreCase);
+        // FIXME how was this being used? private ConcurrentDictionary<string, IStorageBlobDirectory> _lockDirectoryMap = new ConcurrentDictionary<string, IStorageBlobDirectory>(StringComparer.OrdinalIgnoreCase);
         private TimeSpan _minimumLeaseRenewalInterval = TimeSpan.FromSeconds(1);
         private TraceWriter _trace;
         private IHostIdProvider _hostIdProvider;
