@@ -8,14 +8,16 @@ using Microsoft.Azure.WebJobs.Host.Lease;
 
 namespace Microsoft.Azure.WebJobs.Host
 {
-    internal interface ILeasor
+    internal interface ILeasor // FIXME: review where LeaseDefinition is not the right choice
     {
         Task<string> TryAcquireLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken);
 
-        Task WriteLeaseBlobMetadata(LeaseDefinition leaseDefinition, string key, string value, CancellationToken cancellationToken);
+        Task RenewLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken);
 
         Task ReleaseLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken);
 
-        Task ReadLeaseBlobMetadata(LeaseDefinition leaseDefinition, CancellationToken cancellationToken);
+        Task WriteLeaseBlobMetadataAsync(LeaseDefinition leaseDefinition, string key, string value, CancellationToken cancellationToken);
+
+        Task<LeaseInformation> ReadLeaseInfoAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken);
     }
 }

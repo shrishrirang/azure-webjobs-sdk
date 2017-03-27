@@ -20,18 +20,23 @@ namespace Microsoft.Azure.WebJobs.Host.Sql
             throw new NotImplementedException();
         }
 
-        public Task WriteLeaseBlobMetadata(LeaseDefinition leaseDefinition, string key,
+        public Task RenewLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task WriteLeaseBlobMetadataAsync(LeaseDefinition leaseDefinition, string key,
             string value, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }
 
-        public Task ReleaseLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
+        public Task<LeaseInformation> ReadLeaseInfoAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }
 
-        public Task ReadLeaseBlobMetadata(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
+        public Task ReleaseLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }

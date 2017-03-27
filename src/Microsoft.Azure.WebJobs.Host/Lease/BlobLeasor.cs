@@ -10,6 +10,7 @@ using Microsoft.Azure.WebJobs.Host.Executors;
 using Microsoft.Azure.WebJobs.Host.Lease;
 using Microsoft.Azure.WebJobs.Host.Storage.Blob;
 using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace Microsoft.Azure.WebJobs.Host.Storage
 {
@@ -89,7 +90,12 @@ namespace Microsoft.Azure.WebJobs.Host.Storage
             return null;
         }
 
-        public async Task WriteLeaseBlobMetadata(LeaseDefinition leaseDefinition, string key, string value, CancellationToken cancellationToken)
+        public Task RenewLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task WriteLeaseBlobMetadataAsync(LeaseDefinition leaseDefinition, string key, string value, CancellationToken cancellationToken)
         {
             IStorageBlockBlob lockBlob = GetBlob(leaseDefinition);
             lockBlob.Metadata.Add(key, value);
@@ -137,11 +143,12 @@ namespace Microsoft.Azure.WebJobs.Host.Storage
             }
         }
 
-        public async Task ReadLeaseBlobMetadata(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
+        // FIXME: make this private .. if possible
+        // Also make this FetchLeaseBlobMetadataAsync
+        private async Task FetchLeaseBlobMetadataAsync(IStorageBlob blob, CancellationToken cancellationToken)
         {
             try
             {
-                IStorageBlob blob = GetBlob(leaseDefinition);
                 await blob.FetchAttributesAsync(cancellationToken);
             }
             catch (StorageException exception)
@@ -157,6 +164,31 @@ namespace Microsoft.Azure.WebJobs.Host.Storage
                 }
             }
         }
+
+        public async Task<LeaseInformation> ReadLeaseInfoAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
+        {
+            var leaseInformation = new LeaseInformation
+            {
+                IsLeaseAvailable = false
+            };
+
+            IStorageBlob lockBlob = GetBlob(leaseDefinition);
+
+            await FetchLeaseBlobMetadataAsync(lockBlob, cancellationToken);
+
+            // if the lease is Available, then there is no current owner
+            // (any existing owner value is the last owner that held the lease)
+            if (lockBlob.Properties.LeaseState != LeaseState.Available ||
+                lockBlob.Properties.LeaseStatus != LeaseStatus.Unlocked)
+            {
+                leaseInformation.IsLeaseAvailable = false;
+            }
+
+            leaseInformation.Metadata = lockBlob.Metadata;
+
+            return leaseInformation;
+        }
+
 
         private static async Task<bool> TryCreateAsync(IStorageBlockBlob blob, CancellationToken cancellationToken)
         {
