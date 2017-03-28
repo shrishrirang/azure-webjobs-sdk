@@ -38,8 +38,10 @@ namespace Microsoft.Azure.WebJobs.Host
         private string _hostId;
         private ILeasor _leasor;
 
-        public static string GetAccountName(string accountName)
+        public static string GetAccountName(SingletonAttribute attribute)
         {
+            string accountName = attribute.Account;
+
             if (string.IsNullOrWhiteSpace(accountName))
             {
                 accountName = ConnectionStringNames.Storage;
@@ -117,7 +119,7 @@ namespace Microsoft.Azure.WebJobs.Host
             TimeSpan lockPeriod = GetLockPeriod(attribute, _config);
             var leaseDefinition = new LeaseDefinition
             {
-                AccountName = GetAccountName(attribute.Account),
+                AccountName = GetAccountName(attribute),
                 Namespace = HostContainerNames.Hosts,
                 Category = HostDirectoryNames.SingletonLocks,
                 LockId = lockId,
@@ -322,7 +324,7 @@ namespace Microsoft.Azure.WebJobs.Host
         {
             var leaseDefinition = new LeaseDefinition
             {
-                AccountName = GetAccountName(attribute.Account),
+                AccountName = GetAccountName(attribute),
                 Namespace = HostContainerNames.Hosts,
                 Category = HostDirectoryNames.SingletonLocks,
                 LockId = lockId,
