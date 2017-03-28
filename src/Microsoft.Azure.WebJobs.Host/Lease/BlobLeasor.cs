@@ -121,7 +121,7 @@ namespace Microsoft.Azure.WebJobs.Host.Storage
                 // Note that this call returns without throwing if the lease is expired. See the table at:
                 // http://msdn.microsoft.com/en-us/library/azure/ee691972.aspx
                 await blob.ReleaseLeaseAsync(
-                    accessCondition: new AccessCondition { LeaseId = leaseDefinition.LockId },
+                    accessCondition: new AccessCondition { LeaseId = leaseDefinition.LeaseId },
                     options: null,
                     operationContext: null,
                     cancellationToken: cancellationToken);
