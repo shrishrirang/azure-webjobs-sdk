@@ -14,6 +14,9 @@ namespace Microsoft.Azure.WebJobs
         /// <summary>Gets the Azure Storage connection string name.</summary>
         public static readonly string Storage = "Storage";
 
+        /// <summary>Gets the Leasor connection string name.</summary>
+        public static readonly string Leasor = "Leasor";
+
         /// <summary>Gets the Azure ServiceBus connection string name.</summary>
         public static readonly string ServiceBus = "ServiceBus";
     }

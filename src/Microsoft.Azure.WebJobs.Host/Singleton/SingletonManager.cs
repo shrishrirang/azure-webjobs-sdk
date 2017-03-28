@@ -38,6 +38,16 @@ namespace Microsoft.Azure.WebJobs.Host
         private string _hostId;
         private ILeasor _leasor;
 
+        public static string GetAccountName(string accountName)
+        {
+            if (string.IsNullOrWhiteSpace(accountName))
+            {
+                accountName = ConnectionStringNames.Storage;
+            }
+
+            return accountName;
+        }
+
         // For mock testing only
         internal SingletonManager()
         {
@@ -107,10 +117,10 @@ namespace Microsoft.Azure.WebJobs.Host
             TimeSpan lockPeriod = GetLockPeriod(attribute, _config);
             var leaseDefinition = new LeaseDefinition
             {
-                AccountName = attribute.Account,
+                AccountName = GetAccountName(attribute.Account),
                 Namespace = HostContainerNames.Hosts,
                 Category = HostDirectoryNames.SingletonLocks,
-                Id = lockId,
+                LockId = lockId,
                 Period = lockPeriod
             };
 
@@ -129,7 +139,7 @@ namespace Microsoft.Azure.WebJobs.Host
                     await Task.Delay(_config.LockAcquisitionPollingInterval);
                     timeWaited += _config.LockAcquisitionPollingInterval;
                     // FIXME: check logic - null lockid.. ? also, check the whole logic
-                    leaseDefinition.Id = null;
+                    leaseDefinition.LockId = null;
                     leaseId = await _leasor.TryAcquireLeaseAsync(leaseDefinition, cancellationToken);
                 }
             }
@@ -143,17 +153,19 @@ namespace Microsoft.Azure.WebJobs.Host
 
             if (!string.IsNullOrEmpty(functionInstanceId))
             {
-                leaseDefinition.Id = lockId; // FIXME: check this.. lockId, leaseId or null???
+                leaseDefinition.LockId = lockId; // FIXME: check this.. lockId, leaseId or null???
                 await _leasor.WriteLeaseBlobMetadataAsync(leaseDefinition, FunctionInstanceMetadataKey, functionInstanceId,
                     cancellationToken);
             }
+
+            leaseDefinition.LeaseId = leaseId;
 
             // FIXME: something is wrong with the leaseId, lockId usage in the refactored code
             SingletonLockHandle lockHandle = new SingletonLockHandle
             {
                 LockId = lockId,
                 LeaseDefinition = leaseDefinition, // FIXME: review the whole refactoring in this file. what is lease id, lock id, difference?
-                LeaseRenewalTimer = CreateLeaseRenewalTimer(_leasor, leaseDefinition, lockId, lockPeriod, _exceptionHandler)
+                LeaseRenewalTimer = CreateLeaseRenewalTimer(_leasor, leaseDefinition, leaseId, lockPeriod, _exceptionHandler)
             };
 
             // start the renewal timer, which ensures that we maintain our lease until
@@ -172,10 +184,6 @@ namespace Microsoft.Azure.WebJobs.Host
                 await singletonLockHandle.LeaseRenewalTimer.StopAsync(cancellationToken);
             }
 
-            var leaseDefinition = new LeaseDefinition
-            {
-
-            };
             await _leasor.ReleaseLeaseAsync(singletonLockHandle.LeaseDefinition, cancellationToken);
 
             _trace.Verbose(string.Format(CultureInfo.InvariantCulture, "Singleton lock released ({0})", singletonLockHandle.LockId), source: TraceSource.Execution);
@@ -314,10 +322,10 @@ namespace Microsoft.Azure.WebJobs.Host
         {
             var leaseDefinition = new LeaseDefinition
             {
-                AccountName = attribute.Account,
+                AccountName = GetAccountName(attribute.Account),
                 Namespace = HostContainerNames.Hosts,
                 Category = HostDirectoryNames.SingletonLocks,
-                Id = lockId,
+                LockId = lockId,
             };
 
             LeaseInformation leaseInfo = await _leasor.ReadLeaseInfoAsync(leaseDefinition, cancellationToken);
@@ -341,14 +349,14 @@ namespace Microsoft.Azure.WebJobs.Host
                     config.ListenerLockPeriod : config.LockPeriod;
         }
 
-        private ITaskSeriesTimer CreateLeaseRenewalTimer(ILeasor leasor, LeaseDefinition leaseDefinition, string lockId, TimeSpan leasePeriod,
+        private ITaskSeriesTimer CreateLeaseRenewalTimer(ILeasor leasor, LeaseDefinition leaseDefinition, string leaseId, TimeSpan leasePeriod, // FIXME: leaseId param unnecessary
             IWebJobsExceptionHandler exceptionHandler)
         {
             // renew the lease when it is halfway to expiring   
             TimeSpan normalUpdateInterval = new TimeSpan(leasePeriod.Ticks / 2);
 
             IDelayStrategy speedupStrategy = new LinearSpeedupStrategy(normalUpdateInterval, MinimumLeaseRenewalInterval);
-            ITaskSeriesCommand command = new RenewLeaseCommand(leasor, leaseDefinition, lockId, speedupStrategy, _trace, leasePeriod);
+            ITaskSeriesCommand command = new RenewLeaseCommand(leasor, leaseDefinition, leaseId, speedupStrategy, _trace, leasePeriod);
             return new TaskSeriesTimer(command, exceptionHandler, Task.Delay(normalUpdateInterval));
         }
 
@@ -364,19 +372,19 @@ namespace Microsoft.Azure.WebJobs.Host
         {
             private readonly ILeasor _leasor;
             private readonly LeaseDefinition _leaseDefinition;
-            private readonly string _lockId;
+            private readonly string _leaseId;
             private readonly IDelayStrategy _speedupStrategy;
             private readonly TraceWriter _trace;
             private DateTimeOffset _lastRenewal;
             private TimeSpan _lastRenewalLatency;
             private TimeSpan _leasePeriod;
-
-            public RenewLeaseCommand(ILeasor leasor, LeaseDefinition leaseDefinition, string lockId, IDelayStrategy speedupStrategy, TraceWriter trace, TimeSpan leasePeriod)
+            //FIXME: try updating content in unc path and see if host reloads as expected.
+            public RenewLeaseCommand(ILeasor leasor, LeaseDefinition leaseDefinition, string leaseId, IDelayStrategy speedupStrategy, TraceWriter trace, TimeSpan leasePeriod)
             {
                 _lastRenewal = DateTimeOffset.UtcNow;
                 _leasor = leasor;
                 _leaseDefinition = leaseDefinition;
-                _lockId = lockId;
+                _leaseId = leaseId; // FIXME: leaseId unnecesary as leasedefinition now contains a leaseid param. Decide to either use _leaseid or leasedefinition.leaseid. also, lockid and leaseid members of leasedefinition sound confusing
                 _speedupStrategy = speedupStrategy;
                 _trace = trace;
                 _leasePeriod = leasePeriod;
@@ -390,7 +398,7 @@ namespace Microsoft.Azure.WebJobs.Host
                 {
                     AccessCondition condition = new AccessCondition
                     {
-                        LeaseId = _leaseDefinition.Id
+                        LeaseId = _leaseDefinition.LockId
                     };
                     DateTimeOffset requestStart = DateTimeOffset.UtcNow;
                     await _leasor.RenewLeaseAsync(_leaseDefinition, cancellationToken);
@@ -407,7 +415,7 @@ namespace Microsoft.Azure.WebJobs.Host
                         // The next execution should occur more quickly (try to renew the lease before it expires).
                         delay = _speedupStrategy.GetNextDelay(executionSucceeded: false);
                         _trace.Warning(string.Format(CultureInfo.InvariantCulture, "Singleton lock renewal failed for blob '{0}' with error code {1}. Retry renewal in {2} milliseconds.",
-                            _lockId, FormatErrorCode(exception), delay.TotalMilliseconds), source: TraceSource.Execution);
+                            _leaseDefinition.LockId, FormatErrorCode(exception), delay.TotalMilliseconds), source: TraceSource.Execution);
                     }
                     else
                     {
@@ -418,7 +426,7 @@ namespace Microsoft.Azure.WebJobs.Host
                         int lastRenewalMilliseconds = (int)_lastRenewalLatency.TotalMilliseconds;
 
                         _trace.Error(string.Format(CultureInfo.InvariantCulture, "Singleton lock renewal failed for blob '{0}' with error code {1}. The last successful renewal completed at {2} ({3} milliseconds ago) with a duration of {4} milliseconds. The lease period was {5} milliseconds.",
-                            _lockId, FormatErrorCode(exception), lastRenewalFormatted, millisecondsSinceLastSuccess, lastRenewalMilliseconds, leasePeriodMilliseconds));
+                            _leaseDefinition.LockId, FormatErrorCode(exception), lastRenewalFormatted, millisecondsSinceLastSuccess, lastRenewalMilliseconds, leasePeriodMilliseconds));
 
                         // If we've lost the lease or cannot re-establish it, we want to fail any
                         // in progress function execution

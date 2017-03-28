@@ -27,7 +27,7 @@ namespace Microsoft.Azure.WebJobs.Host.Storage
         private IStorageBlockBlob GetBlob(LeaseDefinition leaseDefinition)
         {
             IStorageBlobDirectory lockDirectory = GetLockDirectory(leaseDefinition.AccountName, leaseDefinition.Namespace, leaseDefinition.Category);
-            return lockDirectory.GetBlockBlobReference(leaseDefinition.Id);
+            return lockDirectory.GetBlockBlobReference(leaseDefinition.LockId);
         }
 
         public async Task<string> TryAcquireLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
@@ -92,7 +92,13 @@ namespace Microsoft.Azure.WebJobs.Host.Storage
 
         public Task RenewLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            IStorageBlockBlob lockBlob = GetBlob(leaseDefinition);
+            var accessCondition = new AccessCondition
+            {
+                LeaseId = leaseDefinition.LeaseId
+            };
+
+            return lockBlob.RenewLeaseAsync(accessCondition, null, null, cancellationToken);
         }
 
         public async Task WriteLeaseBlobMetadataAsync(LeaseDefinition leaseDefinition, string key, string value, CancellationToken cancellationToken)
@@ -101,7 +107,7 @@ namespace Microsoft.Azure.WebJobs.Host.Storage
             lockBlob.Metadata.Add(key, value);
 
             await lockBlob.SetMetadataAsync(
-                accessCondition: new AccessCondition { LeaseId = leaseDefinition.Id },
+                accessCondition: new AccessCondition { LeaseId = leaseDefinition.LockId },
                 options: null,
                 operationContext: null,
                 cancellationToken: cancellationToken);
@@ -115,7 +121,7 @@ namespace Microsoft.Azure.WebJobs.Host.Storage
                 // Note that this call returns without throwing if the lease is expired. See the table at:
                 // http://msdn.microsoft.com/en-us/library/azure/ee691972.aspx
                 await blob.ReleaseLeaseAsync(
-                    accessCondition: new AccessCondition { LeaseId = leaseDefinition.Id },
+                    accessCondition: new AccessCondition { LeaseId = leaseDefinition.LockId },
                     options: null,
                     operationContext: null,
                     cancellationToken: cancellationToken);

@@ -13,7 +13,9 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
 
         public string Category { get; set; }
 
-        public string Id { get; set; }
+        public string LockId { get; set; }
+
+        public string LeaseId { get; set; }
 
         public TimeSpan Period { get; set; }
     }

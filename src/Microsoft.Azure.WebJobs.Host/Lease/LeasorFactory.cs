@@ -10,18 +10,28 @@ namespace Microsoft.Azure.WebJobs.Host
 {
     internal class LeasorFactory
     {
-        public static ILeasor CreateLeasor(string accountName, IStorageAccountProvider storageAccountProvider)
+        // FIXME: what if no storage connection strings are defined? that should be supported too. Introduce InMemoryLeasor that implements ILeasor.cs
+        public static ILeasor CreateLeasor(IStorageAccountProvider storageAccountProvider)
         {
+            string accountName = ConnectionStringNames.Leasor;
+
+            if (string.IsNullOrWhiteSpace(AmbientConnectionStringProvider.Instance.GetConnectionString(accountName)))
+            {
+                accountName = ConnectionStringNames.Storage;
+            }
+
             ILeasor leasor = null;
             SqlLeasor.TryGetAccountAsync(accountName, out leasor);
 
             if (leasor == null)
             {
-                var storageAccount = storageAccountProvider.TryGetAccountAsync(accountName, new CancellationToken()).Result;
+                var storageAccount = storageAccountProvider.TryGetAccountAsync(accountName, CancellationToken.None).Result;
                 leasor = new BlobLeasor(storageAccountProvider);
             }
 
             return leasor;
         }
+
+
     }
 }

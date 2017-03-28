@@ -62,18 +62,9 @@ namespace Microsoft.Azure.WebJobs
             IConverterManager converterManager = new ConverterManager();
             IWebJobsExceptionHandler exceptionHandler = new WebJobsExceptionHandler();
 
-            var leasorConnectionString = AmbientConnectionStringProvider.Instance.GetConnectionString("Leasor");
-            if (!string.IsNullOrWhiteSpace(leasorConnectionString))
-            {
-                leasorConnectionString = dashboardAndStorageConnectionString; // FIXME: what if no storage connection strings are defined? that should be supported too. Introduce InMemoryLeasor that implements ILeasor.cs
-            }
-
-            ILeasor leasor = LeasorFactory.CreateLeasor(leasorConnectionString, _storageAccountProvider);
-
             AddService<IQueueConfiguration>(_queueConfiguration);
             AddService<IConsoleProvider>(ConsoleProvider);
             AddService<IStorageAccountProvider>(_storageAccountProvider);
-            AddService<ILeasor>(leasor);
             AddService<IExtensionRegistry>(extensions);
             AddService<StorageClientFactory>(new StorageClientFactory());
             AddService<INameResolver>(new DefaultNameResolver());
@@ -81,6 +72,10 @@ namespace Microsoft.Azure.WebJobs
             AddService<ITypeLocator>(typeLocator);
             AddService<IConverterManager>(converterManager);
             AddService<IWebJobsExceptionHandler>(exceptionHandler);
+
+            // FIXME: should we break the dependency ?
+            ILeasor leasor = LeasorFactory.CreateLeasor(_storageAccountProvider);
+            AddService<ILeasor>(leasor);
 
             string value = ConfigurationUtility.GetSettingFromConfigOrEnvironment(Constants.EnvironmentSettingName);
             IsDevelopment = string.Compare(Constants.DevelopmentEnvironmentValue, value, StringComparison.OrdinalIgnoreCase) == 0;
