@@ -33,8 +33,37 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
 
         private IStorageBlockBlob GetBlob(LeaseDefinition leaseDefinition)
         {
-            IStorageBlobDirectory lockDirectory = GetLockDirectory(leaseDefinition.AccountName, leaseDefinition.Namespace, leaseDefinition.Category);
-            return lockDirectory.GetBlockBlobReference(leaseDefinition.LockId);
+            //            IStorageBlobDirectory lockDirectory = GetLockDirectory(leaseDefinition.AccountName, leaseDefinition.Namespace, leaseDefinition.Category);
+//            return lockDirectory.GetBlockBlobReference(leaseDefinition.LockId);
+
+            var accountName = leaseDefinition.AccountName;
+
+            IStorageBlockBlob blob = null;
+            // FIXME: what if accountName is null?
+
+            // FIXME: temporarily disabling caching. need to update the caching logic to support absence of directory name (category name)
+            //if (!_lockDirectoryMap.TryGetValue(accountName, out storageDirectory))
+            {
+                Task<IStorageAccount> task = _storageAccountProvider.GetAccountAsync(accountName, CancellationToken.None);
+                IStorageAccount storageAccount = task.Result;
+                // singleton requires block blobs, cannot be premium
+                storageAccount.AssertTypeOneOf(StorageAccountType.GeneralPurpose, StorageAccountType.BlobOnly);
+                IStorageBlobClient blobClient = storageAccount.CreateBlobClient();
+                IStorageBlobContainer container = blobClient.GetContainerReference(leaseDefinition.Namespace);
+
+                if (string.IsNullOrWhiteSpace(leaseDefinition.Category))
+                {
+                    blob = container.GetBlockBlobReference(leaseDefinition.LockId);
+                }
+                else
+                {
+                    IStorageBlobDirectory blobDirectory = container.GetDirectoryReference(leaseDefinition.Category);
+                    _lockDirectoryMap[accountName] = blobDirectory;
+                    blob = blobDirectory.GetBlockBlobReference(leaseDefinition.LockId);
+                }
+            }
+
+            return blob;
         }
 
         /// <summary>
@@ -288,19 +317,23 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
         {
             IStorageBlobDirectory storageDirectory = null;
             // FIXME: what if accountName is null?
-            if (!_lockDirectoryMap.TryGetValue(accountName, out storageDirectory))
+
+            // FIXME: temporarily disabling caching. need to update the caching logic to support absence of directory name (category name)
+            //if (!_lockDirectoryMap.TryGetValue(accountName, out storageDirectory))
             {
                 Task<IStorageAccount> task = _storageAccountProvider.GetAccountAsync(accountName, CancellationToken.None);
                 IStorageAccount storageAccount = task.Result;
                 // singleton requires block blobs, cannot be premium
                 storageAccount.AssertTypeOneOf(StorageAccountType.GeneralPurpose, StorageAccountType.BlobOnly);
                 IStorageBlobClient blobClient = storageAccount.CreateBlobClient();
-                storageDirectory = blobClient.GetContainerReference(leaseNamespace)
-                                       .GetDirectoryReference(leaseCategory);
-                _lockDirectoryMap[accountName] = storageDirectory;
+                IStorageBlobContainer container = blobClient.GetContainerReference(leaseNamespace);
+                IStorageBlobDirectory blobDirectory = container.GetDirectoryReference(leaseCategory);
+                _lockDirectoryMap[accountName] = blobDirectory;
             }
 
             return storageDirectory;
         }
     }
 }
+
+// FIXME: Check if the refactoring causes any caching to go away in either webjobs or script
