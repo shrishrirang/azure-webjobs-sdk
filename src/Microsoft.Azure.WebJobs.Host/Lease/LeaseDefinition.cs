@@ -13,7 +13,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
         /// <summary>
         /// FIXME
         /// </summary>
-        public string AccountName { get; set; }
+        public string AccountName { get; set; } // FIXME: why is this accountname and not connection string?
 
         /// <summary>
         /// FIXME

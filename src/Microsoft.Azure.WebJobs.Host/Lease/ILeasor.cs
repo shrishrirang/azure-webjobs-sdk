@@ -21,6 +21,14 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
         /// <summary>
         /// FIXME
         /// </summary>
+        /// <param name="leaseDefinition"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        Task<string> AcquireLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// FIXME
+        /// </summary>
         Task RenewLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken);
 
         /// <summary>

@@ -42,62 +42,68 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
         /// </summary>
         public async Task<string> TryAcquireLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
         {
+            try
+            {
+                return await AcquireLeaseAsync(leaseDefinition, cancellationToken);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// FIXME
+        /// </summary>
+        public async Task<string> AcquireLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
+        {
             IStorageBlockBlob lockBlob = GetBlob(leaseDefinition);
 
-            //leaseId = await TryAcquireLeaseAsync(lockBlob, lockPeriod, cancellationToken);
-            bool blobDoesNotExist = false;
             try
             {
                 // Optimistically try to acquire the lease. The blob may not yet
                 // exist. If it doesn't we handle the 404, create it, and retry below
-                return await lockBlob.AcquireLeaseAsync(leaseDefinition.Period, null, cancellationToken);
+                return await lockBlob.AcquireLeaseAsync(leaseDefinition.Period, leaseDefinition.LeaseId, cancellationToken);
             }
             catch (StorageException exception)
             {
                 if (exception.RequestInformation != null)
                 {
-                    if (exception.RequestInformation.HttpStatusCode == 409)
+                    if (exception.RequestInformation.HttpStatusCode == 404)
                     {
-                        return null;
+                        // No action needed. We will create the blob and retry again.
                     }
-                    else if (exception.RequestInformation.HttpStatusCode == 404)
+                    else if (exception.RequestInformation.HttpStatusCode == 409)
                     {
-                        blobDoesNotExist = true;
+                        throw new LeaseException(LeaseFailureReason.Conflict, exception);
                     }
                     else
                     {
-                        throw;
+                        throw new LeaseException(LeaseFailureReason.Unknown, exception);
                     }
                 }
                 else
                 {
-                    throw;
+                    throw new LeaseException(LeaseFailureReason.Unknown, exception);
                 }
             }
 
-            if (blobDoesNotExist)
+            await TryCreateAsync(lockBlob, cancellationToken);
+
+            try
             {
-                await TryCreateAsync(lockBlob, cancellationToken);
-
-                try
-                {
-                    return await lockBlob.AcquireLeaseAsync(leaseDefinition.Period, null, cancellationToken);
-                }
-                catch (StorageException exception)
-                {
-                    if (exception.RequestInformation != null &&
-                        exception.RequestInformation.HttpStatusCode == 409)
-                    {
-                        return null;
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
+                return await lockBlob.AcquireLeaseAsync(leaseDefinition.Period, null, cancellationToken);
             }
+            catch (StorageException exception)
+            {
+                if (exception.RequestInformation != null &&
+                    exception.RequestInformation.HttpStatusCode == 409)
+                {
+                    throw new LeaseException(LeaseFailureReason.Conflict, exception);
+                }
 
-            return null;
+                throw new LeaseException(LeaseFailureReason.Unknown, exception);
+            }
         }
 
         /// <summary>

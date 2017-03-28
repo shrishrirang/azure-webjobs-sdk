@@ -32,6 +32,17 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
         /// <summary>
         /// FIXME
         /// </summary>
+        /// <param name="leaseDefinition"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        public Task<string> AcquireLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// FIXME
+        /// </summary>
         public Task RenewLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();

@@ -44,6 +44,11 @@ namespace Microsoft.Azure.WebJobs.Host
 
             if (string.IsNullOrWhiteSpace(accountName))
             {
+                accountName = ConnectionStringNames.Leasor;
+            }
+
+            if (string.IsNullOrWhiteSpace(AmbientConnectionStringProvider.Instance.GetConnectionString(accountName)))
+            {
                 accountName = ConnectionStringNames.Storage;
             }
 
