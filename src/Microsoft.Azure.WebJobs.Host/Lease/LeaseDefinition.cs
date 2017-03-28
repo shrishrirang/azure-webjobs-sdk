@@ -5,18 +5,39 @@ using System;
 
 namespace Microsoft.Azure.WebJobs.Host.Lease
 {
-    internal class LeaseDefinition
+    /// <summary>
+    /// FIXME
+    /// </summary>
+    public class LeaseDefinition
     {
+        /// <summary>
+        /// FIXME
+        /// </summary>
         public string AccountName { get; set; }
 
+        /// <summary>
+        /// FIXME
+        /// </summary>
         public string Namespace { get; set; }
 
+        /// <summary>
+        /// FIXME
+        /// </summary>
         public string Category { get; set; }
 
+        /// <summary>
+        /// FIXME
+        /// </summary>
         public string LockId { get; set; }
 
+        /// <summary>
+        /// FIXME
+        /// </summary>
         public string LeaseId { get; set; }
 
+        /// <summary>
+        /// FIXME
+        /// </summary>
         public TimeSpan Period { get; set; }
     }
 }

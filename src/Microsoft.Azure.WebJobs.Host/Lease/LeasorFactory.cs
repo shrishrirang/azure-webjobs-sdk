@@ -3,14 +3,20 @@
 
 using System.Threading;
 using Microsoft.Azure.WebJobs.Host.Executors;
-using Microsoft.Azure.WebJobs.Host.Sql;
+using Microsoft.Azure.WebJobs.Host.Lease;
 using Microsoft.Azure.WebJobs.Host.Storage;
 
-namespace Microsoft.Azure.WebJobs.Host
+namespace Microsoft.Azure.WebJobs.Host.Lease
 {
+    /// <summary>
+    /// FIXME
+    /// </summary>
     internal class LeasorFactory
     {
         // FIXME: what if no storage connection strings are defined? that should be supported too. Introduce InMemoryLeasor that implements ILeasor.cs
+        /// <summary>
+        /// FIXME
+        /// </summary>
         public static ILeasor CreateLeasor(IStorageAccountProvider storageAccountProvider)
         {
             string accountName = ConnectionStringNames.Leasor;

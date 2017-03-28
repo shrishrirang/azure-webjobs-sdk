@@ -8,17 +8,24 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Azure.WebJobs.Host.Executors;
 using Microsoft.Azure.WebJobs.Host.Lease;
+using Microsoft.Azure.WebJobs.Host.Storage;
 using Microsoft.Azure.WebJobs.Host.Storage.Blob;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
 
-namespace Microsoft.Azure.WebJobs.Host.Storage
+namespace Microsoft.Azure.WebJobs.Host.Lease
 {
+    /// <summary>
+    /// FIXME
+    /// </summary>
     internal class BlobLeasor : ILeasor
     {
         private IStorageAccountProvider _storageAccountProvider;
         private ConcurrentDictionary<string, IStorageBlobDirectory> _lockDirectoryMap = new ConcurrentDictionary<string, IStorageBlobDirectory>(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>
+        /// FIXME
+        /// </summary>
         public BlobLeasor(IStorageAccountProvider storageAccountProvider)
         {
             _storageAccountProvider = storageAccountProvider;
@@ -30,6 +37,9 @@ namespace Microsoft.Azure.WebJobs.Host.Storage
             return lockDirectory.GetBlockBlobReference(leaseDefinition.LockId);
         }
 
+        /// <summary>
+        /// FIXME
+        /// </summary>
         public async Task<string> TryAcquireLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
         {
             IStorageBlockBlob lockBlob = GetBlob(leaseDefinition);
@@ -90,6 +100,9 @@ namespace Microsoft.Azure.WebJobs.Host.Storage
             return null;
         }
 
+        /// <summary>
+        /// FIXME
+        /// </summary>
         public Task RenewLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
         {
             IStorageBlockBlob lockBlob = GetBlob(leaseDefinition);
@@ -101,6 +114,9 @@ namespace Microsoft.Azure.WebJobs.Host.Storage
             return lockBlob.RenewLeaseAsync(accessCondition, null, null, cancellationToken);
         }
 
+        /// <summary>
+        /// FIXME
+        /// </summary>
         public async Task WriteLeaseBlobMetadataAsync(LeaseDefinition leaseDefinition, string key, string value, CancellationToken cancellationToken)
         {
             IStorageBlockBlob lockBlob = GetBlob(leaseDefinition);
@@ -113,6 +129,9 @@ namespace Microsoft.Azure.WebJobs.Host.Storage
                 cancellationToken: cancellationToken);
         }
 
+        /// <summary>
+        /// FIXME
+        /// </summary>
         public async Task ReleaseLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
         {
             try
@@ -171,6 +190,9 @@ namespace Microsoft.Azure.WebJobs.Host.Storage
             }
         }
 
+        /// <summary>
+        /// FIXME
+        /// </summary>
         public async Task<LeaseInformation> ReadLeaseInfoAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
         {
             var leaseInformation = new LeaseInformation
@@ -259,6 +281,7 @@ namespace Microsoft.Azure.WebJobs.Host.Storage
         private IStorageBlobDirectory GetLockDirectory(string accountName, string leaseNamespace, string leaseCategory)
         {
             IStorageBlobDirectory storageDirectory = null;
+            // FIXME: what if accountName is null?
             if (!_lockDirectoryMap.TryGetValue(accountName, out storageDirectory))
             {
                 Task<IStorageAccount> task = _storageAccountProvider.GetAccountAsync(accountName, CancellationToken.None);
