@@ -140,6 +140,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
         /// </summary>
         public Task RenewLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
         {
+            // FIXME: Is there a scenario where leaseDefinition.accountName can change every time? If not, do we really need it to be parameterized? Can this just be a constructor param?
             IStorageBlockBlob lockBlob = GetBlob(leaseDefinition);
             var accessCondition = new AccessCondition
             {

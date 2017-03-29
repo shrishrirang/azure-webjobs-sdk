@@ -31,7 +31,6 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
 
             if (leasor == null)
             {
-                var storageAccount = storageAccountProvider.TryGetAccountAsync(accountName, CancellationToken.None).Result;
                 leasor = new BlobLeasor(storageAccountProvider);
             }
 

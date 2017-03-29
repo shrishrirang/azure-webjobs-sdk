@@ -9,13 +9,13 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
     /// FIXME
     /// </summary>
     public class LeaseException : Exception // FIXME: dos and donts of extending exceptions
-    {
+    {//FIXME: rename file.
         /// <summary>
         /// FIXME
         /// </summary>
         /// <param name="failureReason"></param>
         /// <param name="innerException"></param>
-        public LeaseException(LeaseFailureReason failureReason, Exception innerException)
+        public LeaseException(LeaseFailureReason failureReason, Exception innerException) // FIXME: message needed
             : base(null, innerException)
         {
             FailureReason = failureReason;
