@@ -20,6 +20,7 @@ using Microsoft.Azure.WebJobs.Host.Storage.Blob;
 using Microsoft.Azure.WebJobs.Host.Timers;
 using Microsoft.WindowsAzure.Storage;
 
+// FIXME: Multiple threads can run at the same time. Will sqlleasor's lock management support this scenario?
 namespace Microsoft.Azure.WebJobs.Host
 {
     /// <summary>
@@ -145,8 +146,6 @@ namespace Microsoft.Azure.WebJobs.Host
                 {
                     await Task.Delay(_config.LockAcquisitionPollingInterval);
                     timeWaited += _config.LockAcquisitionPollingInterval;
-                    // FIXME: check logic - null lockid.. ? also, check the whole logic
-                    leaseDefinition.LockId = null;
                     leaseId = await _leasor.TryAcquireLeaseAsync(leaseDefinition, cancellationToken);
                 }
             }
@@ -158,12 +157,15 @@ namespace Microsoft.Azure.WebJobs.Host
 
             _trace.Verbose(string.Format(CultureInfo.InvariantCulture, "Singleton lock acquired ({0})", lockId), source: TraceSource.Execution);
 
+            functionInstanceId = "test11";
             if (!string.IsNullOrEmpty(functionInstanceId))
             {
                 leaseDefinition.LockId = lockId; // FIXME: check this.. lockId, leaseId or null???
                 await _leasor.WriteLeaseBlobMetadataAsync(leaseDefinition, FunctionInstanceMetadataKey, functionInstanceId,
                     cancellationToken);
             }
+
+            var mdata = await _leasor.ReadLeaseInfoAsync(leaseDefinition, cancellationToken);
 
             leaseDefinition.LeaseId = leaseId;
 

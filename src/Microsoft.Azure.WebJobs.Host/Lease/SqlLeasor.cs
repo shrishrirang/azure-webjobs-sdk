@@ -2,11 +2,13 @@
 // Licensed under the MIT License. See License.txt in the project root for license information.
 
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Azure.WebJobs.Host.Lease;
+using Newtonsoft.Json;
 
 // FIXME: fix this whole file
 namespace Microsoft.Azure.WebJobs.Host.Lease
@@ -53,11 +55,6 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
             bool isAcquired;
             try
             {
-                if (string.IsNullOrEmpty(leaseDefinition.LockId))
-                {
-                    leaseDefinition.LockId = Guid.NewGuid().ToString(); // FIXME: is this a scenario we want to support?
-                }
-
                 isAcquired = await AcquireOrRenewLeaseAsync(leaseDefinition, cancellationToken);
             }
             catch (Exception ex)
@@ -67,7 +64,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
 
             if (isAcquired)
             {
-                return leaseDefinition.LockId;
+                return "FIXME: make sure the return value here and renew's params are in sync";
             }
 
             throw new LeaseException(LeaseFailureReason.Conflict, null);
@@ -81,7 +78,6 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
             bool isAcquired;
             try
             {
-                leaseDefinition.LockId = leaseDefinition.LeaseId; // FIXME: need a better way to  handle this
                 isAcquired = await AcquireOrRenewLeaseAsync(leaseDefinition, cancellationToken);
             }
             catch (Exception ex)
@@ -101,7 +97,29 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
         public Task WriteLeaseBlobMetadataAsync(LeaseDefinition leaseDefinition, string key,
             string value, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            var metadata = new Dictionary<string, string>
+            {
+                {key, value}
+            };
+
+            var connectionString = GetConnectionString(leaseDefinition.AccountName);
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                using (SqlCommand cmd = connection.CreateCommand())
+                {
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    cmd.CommandText = "[runtime].leases_updateMetadata";
+                    cmd.Parameters.Add("@LeaseName", SqlDbType.NVarChar, 127).Value = GetLeaseName(leaseDefinition);
+                    cmd.Parameters.Add("@RequestorName", SqlDbType.NVarChar, 127).Value = InstanceId;
+                    cmd.Parameters.Add("@Metadata", SqlDbType.NVarChar).Value = JsonConvert.SerializeObject(metadata);
+                    cmd.Parameters.Add("@HasLease", SqlDbType.Bit).Direction = ParameterDirection.Output;
+
+                    cmd.ExecuteNonQuery();
+                }
+            }
+
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -109,26 +127,66 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
         /// </summary>
         public Task<LeaseInformation> ReadLeaseInfoAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            var connectionString = GetConnectionString(leaseDefinition.AccountName);
+            string serializedMetadata = null;
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                using (SqlCommand cmd = connection.CreateCommand())
+                {
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    cmd.CommandText = "[runtime].leases_getMetadata";
+                    cmd.Parameters.Add("@LeaseName", SqlDbType.NVarChar, 127).Value = GetLeaseName(leaseDefinition);
+                    cmd.Parameters.Add("@RequestorName", SqlDbType.NVarChar, 127).Value = InstanceId; // FIXME: is this used to decide whether to allow re-acquiring?
+                    cmd.Parameters.Add("@LeaseExpirationTimeSpan", SqlDbType.Int).Value = leaseDefinition.Period.TotalSeconds;
+                    // cmd.Parameters.Add("@Metadata", SqlDbType.NVarChar).Direction = ParameterDirection.Output;
+                    // cmd.ExecuteNonQuery();
+
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            serializedMetadata = reader["Metadata"] as string;
+                        }
+                    }
+                } 
+            }
+
+            var leaseInformation = new LeaseInformation();
+            if (string.IsNullOrEmpty(serializedMetadata))
+            {
+                leaseInformation.IsLeaseAvailable = false;
+            }
+            else
+            {
+                leaseInformation.IsLeaseAvailable = true;
+                leaseInformation.Metadata = JsonConvert.DeserializeObject<Dictionary<string, string>>(serializedMetadata);
+            }
+
+            return Task.FromResult(leaseInformation);
         }
 
         /// <summary>
         /// FIXME
         /// </summary>
-        public async Task ReleaseLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
+        public Task ReleaseLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
         {
-            using (SqlConnection connection = new SqlConnection(GetConnectionString(leaseDefinition.AccountName)))
+            var connectionString = GetConnectionString(leaseDefinition.AccountName);
+            using (SqlConnection connection = new SqlConnection(connectionString))
             {
-                await connection.OpenAsync();
+                connection.Open();
                 using (SqlCommand cmd = connection.CreateCommand())
                 {
                     cmd.CommandType = CommandType.StoredProcedure;
                     cmd.CommandText = "[runtime].leases_release";
                     cmd.Parameters.Add("@LeaseName", SqlDbType.NVarChar, 127).Value = GetLeaseName(leaseDefinition);
                     cmd.Parameters.Add("@RequestorName", SqlDbType.NVarChar, 127).Value = InstanceId;
-                    await cmd.ExecuteNonQueryAsync();
+                    cmd.ExecuteNonQuery();
                 }
             }
+
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -136,8 +194,12 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
         /// </summary>
         public static bool TryGetAccountAsync(string accountName, out ILeasor leasor)
         {
+            //leasor = null;
+            //return false;
+
             leasor = new SqlLeasor();
             return true;
+
             //var connectionString = AmbientConnectionStringProvider.Instance.GetConnectionString(accountName);
             //if (string.IsNullOrWhiteSpace(connectionString))
             //    return false; // FIXME: identify if this is a sql connection string
@@ -159,14 +221,14 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
 
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
-                await connection.OpenAsync();
+                connection.Open();
                 using (SqlCommand cmd = connection.CreateCommand())
                 {
                     cmd.CommandType = CommandType.StoredProcedure;
                     cmd.CommandText = "[runtime].leases_tryAcquireOrRenew";
                     cmd.Parameters.Add("@LeaseName", SqlDbType.NVarChar, 127).Value = GetLeaseName(leaseDefinition);
                     cmd.Parameters.Add("@RequestorName", SqlDbType.NVarChar, 127).Value = InstanceId; // FIXME: is this used to decide whether to allow re-acquiring?
-                    cmd.Parameters.Add("@Metadata", SqlDbType.NVarChar).Value = "meta";
+                    cmd.Parameters.Add("@Metadata", SqlDbType.NVarChar).Value = JsonConvert.SerializeObject(new Dictionary<string, string>());
                     cmd.Parameters.Add("@LeaseExpirationTimeSpan", SqlDbType.Int).Value = leaseDefinition.Period.TotalSeconds;
                     cmd.Parameters.Add("@HasLease", SqlDbType.Bit).Direction = ParameterDirection.Output;
                     await cmd.ExecuteNonQueryAsync(cancellationToken);
