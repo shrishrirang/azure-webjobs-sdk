@@ -21,7 +21,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
     internal class BlobLeasor : ILeasor
     {
         private IStorageAccountProvider _storageAccountProvider;
-        private ConcurrentDictionary<string, IStorageBlobDirectory> _lockDirectoryMap = new ConcurrentDictionary<string, IStorageBlobDirectory>(StringComparer.OrdinalIgnoreCase);
+        private ConcurrentDictionary<string, IStorageAccount> _storageAccountMap = new ConcurrentDictionary<string, IStorageAccount>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// FIXME
@@ -34,34 +34,30 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
 
         private IStorageBlockBlob GetBlob(LeaseDefinition leaseDefinition)
         {
-            //            IStorageBlobDirectory lockDirectory = GetLockDirectory(leaseDefinition.AccountName, leaseDefinition.Namespace, leaseDefinition.Category);
-//            return lockDirectory.GetBlockBlobReference(leaseDefinition.LockId);
-
             var accountName = leaseDefinition.AccountName;
 
-            IStorageBlockBlob blob = null;
             // FIXME: what if accountName is null?
-
-            // FIXME: temporarily disabling caching. need to update the caching logic to support absence of directory name (category name)
-            //if (!_lockDirectoryMap.TryGetValue(accountName, out storageDirectory))
+            IStorageAccount storageAccount;
+            if (!_storageAccountMap.TryGetValue(accountName, out storageAccount))
             {
-                Task<IStorageAccount> task = _storageAccountProvider.GetAccountAsync(accountName, CancellationToken.None);
-                IStorageAccount storageAccount = task.Result;
-                // singleton requires block blobs, cannot be premium
+                storageAccount = _storageAccountProvider.GetAccountAsync(accountName, CancellationToken.None).Result;
                 storageAccount.AssertTypeOneOf(StorageAccountType.GeneralPurpose, StorageAccountType.BlobOnly);
-                IStorageBlobClient blobClient = storageAccount.CreateBlobClient();
-                IStorageBlobContainer container = blobClient.GetContainerReference(leaseDefinition.Namespace);
+                _storageAccountMap[accountName] = storageAccount;
+            }
 
-                if (string.IsNullOrWhiteSpace(leaseDefinition.Category))
-                {
-                    blob = container.GetBlockBlobReference(leaseDefinition.LockId);
-                }
-                else
-                {
-                    IStorageBlobDirectory blobDirectory = container.GetDirectoryReference(leaseDefinition.Category);
-                    _lockDirectoryMap[accountName] = blobDirectory;
-                    blob = blobDirectory.GetBlockBlobReference(leaseDefinition.LockId);
-                }
+            // singleton requires block blobs, cannot be premium
+            IStorageBlobClient blobClient = storageAccount.CreateBlobClient();
+            IStorageBlobContainer container = blobClient.GetContainerReference(leaseDefinition.Namespace);
+
+            IStorageBlockBlob blob;
+            if (string.IsNullOrWhiteSpace(leaseDefinition.Category))
+            {
+                blob = container.GetBlockBlobReference(leaseDefinition.LockId);
+            }
+            else
+            {
+                IStorageBlobDirectory blobDirectory = container.GetDirectoryReference(leaseDefinition.Category);
+                blob = blobDirectory.GetBlockBlobReference(leaseDefinition.LockId);
             }
 
             return blob;
@@ -317,16 +313,17 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
 
         private IStorageBlobDirectory GetLockDirectory(string accountName, string leaseNamespace, string leaseCategory)
         {
-            IStorageBlobDirectory storageDirectory = null;
+            IStorageAccount storageAccount = null;
             // FIXME: what if accountName is null?
 
             // FIXME: temporarily disabling caching. need to update the caching logic to support absence of directory name (category name)
-            //if (!_lockDirectoryMap.TryGetValue(accountName, out storageDirectory))
+            if (!_storageAccountMap.TryGetValue(accountName, out storageAccount))
             {
-                Task<IStorageAccount> task = _storageAccountProvider.GetAccountAsync(accountName, CancellationToken.None);
-                IStorageAccount storageAccount = task.Result;
-                // singleton requires block blobs, cannot be premium
-                storageAccount.AssertTypeOneOf(StorageAccountType.GeneralPurpose, StorageAccountType.BlobOnly);
+                storageAccount = _storageAccountProvider.GetAccountAsync(accountName, CancellationToken.None).Result;
+            }
+
+            // singleton requires block blobs, cannot be premium
+            storageAccount.AssertTypeOneOf(StorageAccountType.GeneralPurpose, StorageAccountType.BlobOnly);
                 IStorageBlobClient blobClient = storageAccount.CreateBlobClient();
                 IStorageBlobContainer container = blobClient.GetContainerReference(leaseNamespace);
                 IStorageBlobDirectory blobDirectory = container.GetDirectoryReference(leaseCategory);

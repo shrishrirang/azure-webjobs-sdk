@@ -175,7 +175,7 @@ namespace Microsoft.Azure.WebJobs.Host.Executors
 
             if (account != null)
             {
-                // On the first attempt, this will make a network call to verify the credentials work. // FIXME: Is this being used anymore? If not something is wrong. If yes, make sure this is used only once per account name.
+                // On the first attempt, this will make a network call to verify the credentials work.
                 await _storageCredentialsValidator.ValidateCredentialsAsync(account, cancellationToken);
 
                 if (isPrimary)

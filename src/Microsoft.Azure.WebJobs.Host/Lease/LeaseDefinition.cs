@@ -23,7 +23,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
         /// <summary>
         /// FIXME
         /// </summary>
-        public string Category { get; set; }
+        public string Category { get; set; } // FIXME: change naming of namespace category lockid to container directory blobname
 
         /// <summary>
         /// FIXME

@@ -62,6 +62,7 @@ namespace Microsoft.Azure.WebJobs
             ITypeLocator typeLocator = new DefaultTypeLocator(ConsoleProvider.Out, extensions);
             IConverterManager converterManager = new ConverterManager();
             IWebJobsExceptionHandler exceptionHandler = new WebJobsExceptionHandler();
+            ILeasor leasor = LeasorFactory.CreateLeasor(_storageAccountProvider);
 
             AddService<IQueueConfiguration>(_queueConfiguration);
             AddService<IConsoleProvider>(ConsoleProvider);
@@ -73,9 +74,6 @@ namespace Microsoft.Azure.WebJobs
             AddService<ITypeLocator>(typeLocator);
             AddService<IConverterManager>(converterManager);
             AddService<IWebJobsExceptionHandler>(exceptionHandler);
-
-            // FIXME: should we break the dependency ?
-            ILeasor leasor = LeasorFactory.CreateLeasor(_storageAccountProvider);
             AddService<ILeasor>(leasor);
 
             string value = ConfigurationUtility.GetSettingFromConfigOrEnvironment(Constants.EnvironmentSettingName);
