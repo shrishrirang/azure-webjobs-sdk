@@ -297,7 +297,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
                 throw new InvalidOperationException(string.Format(CultureInfo.InvariantCulture, "Invalid lease Namespace: {0}", leaseDefinition.Namespace));
             }
 
-            if (leaseDefinition.Category.Contains("|"))
+            if (!string.IsNullOrEmpty(leaseDefinition.Category) && leaseDefinition.Category.Contains("|"))
             {
                 throw new InvalidOperationException(string.Format(CultureInfo.InvariantCulture, "Invalid lease Category: {0}", leaseDefinition.Category));
             }
