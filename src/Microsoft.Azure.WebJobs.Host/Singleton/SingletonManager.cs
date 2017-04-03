@@ -20,7 +20,6 @@ using Microsoft.Azure.WebJobs.Host.Storage.Blob;
 using Microsoft.Azure.WebJobs.Host.Timers;
 using Microsoft.WindowsAzure.Storage;
 
-// FIXME: Multiple threads can run at the same time. Will sqlleasor's lock management support this scenario?
 namespace Microsoft.Azure.WebJobs.Host
 {
     /// <summary>
@@ -32,7 +31,6 @@ namespace Microsoft.Azure.WebJobs.Host
         private readonly INameResolver _nameResolver;
         private readonly IWebJobsExceptionHandler _exceptionHandler;
         private readonly SingletonConfiguration _config;
-        // FIXME how was this being used? private ConcurrentDictionary<string, IStorageBlobDirectory> _lockDirectoryMap = new ConcurrentDictionary<string, IStorageBlobDirectory>(StringComparer.OrdinalIgnoreCase);
         private TimeSpan _minimumLeaseRenewalInterval = TimeSpan.FromSeconds(1);
         private TraceWriter _trace;
         private IHostIdProvider _hostIdProvider;
@@ -46,7 +44,6 @@ namespace Microsoft.Azure.WebJobs.Host
 
         public SingletonManager(ILeaseProxy leaseProxy, IWebJobsExceptionHandler exceptionHandler, SingletonConfiguration config, TraceWriter trace, IHostIdProvider hostIdProvider, INameResolver nameResolver = null)
         {
-            // FIXME: accountProvider param exists only to keep test compilation happy. fix it.
             _leaseProxy = leaseProxy;
             _nameResolver = nameResolver;
             _exceptionHandler = exceptionHandler;
@@ -109,9 +106,7 @@ namespace Microsoft.Azure.WebJobs.Host
             var leaseDefinition = new LeaseDefinition
             {
                 AccountName = GetAccountName(attribute),
-                Namespaces = new List<string> {  HostContainerNames.Hosts, HostDirectoryNames.SingletonLocks },
-                Namespace = HostContainerNames.Hosts,
-                Category = HostDirectoryNames.SingletonLocks,
+                Namespaces = new List<string> { HostContainerNames.Hosts, HostDirectoryNames.SingletonLocks },
                 Name = lockId,
                 Period = lockPeriod
             };
@@ -149,8 +144,6 @@ namespace Microsoft.Azure.WebJobs.Host
                 await _leaseProxy.WriteLeaseMetadataAsync(leaseDefinition, FunctionInstanceMetadataKey, functionInstanceId,
                     cancellationToken);
             }
-
-            var mdata = await _leaseProxy.ReadLeaseInfoAsync(leaseDefinition, cancellationToken);
 
             leaseDefinition.LeaseId = leaseId;
 
@@ -318,8 +311,6 @@ namespace Microsoft.Azure.WebJobs.Host
             {
                 AccountName = GetAccountName(attribute),
                 Namespaces = new List<string> { HostContainerNames.Hosts, HostDirectoryNames.SingletonLocks },
-                Namespace = HostContainerNames.Hosts,
-                Category = HostDirectoryNames.SingletonLocks,
                 Name = lockId,
             };
 
@@ -371,7 +362,7 @@ namespace Microsoft.Azure.WebJobs.Host
             private DateTimeOffset _lastRenewal;
             private TimeSpan _lastRenewalLatency;
             private TimeSpan _leasePeriod;
-            //FIXME: try updating content in unc path and see if host reloads as expected.
+            
             public RenewLeaseCommand(ILeaseProxy leaseProxy, LeaseDefinition leaseDefinition, IDelayStrategy speedupStrategy, TraceWriter trace, TimeSpan leasePeriod)
             {
                 _lastRenewal = DateTimeOffset.UtcNow;

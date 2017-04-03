@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Azure.WebJobs.Host.Executors;
@@ -305,21 +306,41 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
                 _storageAccountMap[accountName] = storageAccount;
             }
 
+            string containerName, directoryName;
+            GetPathComponents(leaseDefinition, out containerName, out directoryName);
+
             IStorageBlobClient blobClient = storageAccount.CreateBlobClient();
-            IStorageBlobContainer container = blobClient.GetContainerReference(leaseDefinition.Namespace);
+            IStorageBlobContainer container = blobClient.GetContainerReference(containerName);
 
             IStorageBlockBlob blob;
-            if (string.IsNullOrWhiteSpace(leaseDefinition.Category))
+            if (string.IsNullOrWhiteSpace(directoryName))
             {
                 blob = container.GetBlockBlobReference(leaseDefinition.Name);
             }
             else
             {
-                IStorageBlobDirectory blobDirectory = container.GetDirectoryReference(leaseDefinition.Category);
+                IStorageBlobDirectory blobDirectory = container.GetDirectoryReference(directoryName);
                 blob = blobDirectory.GetBlockBlobReference(leaseDefinition.Name);
             }
 
             return blob;
+        }
+
+        private static void GetPathComponents(LeaseDefinition leaseDefinition, out string containerName, out string directoryName)
+        {
+            containerName = directoryName = null;
+
+            if (leaseDefinition.Namespaces == null || leaseDefinition.Namespaces.Count < 1 || leaseDefinition.Namespaces.Count > 2)
+            {
+                throw new InvalidOperationException(string.Format(CultureInfo.InvariantCulture, "Invalid LeaseDefinition Namespaces: {0}", leaseDefinition.Namespaces));
+            }
+
+            containerName = leaseDefinition.Namespaces[0];
+
+            if (leaseDefinition.Namespaces.Count == 2)
+            {
+                directoryName = leaseDefinition.Namespaces[1];
+            }
         }
     }
 }

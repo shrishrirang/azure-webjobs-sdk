@@ -9,12 +9,12 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
     public enum LeaseFailureReason
     {
         /// <summary>
-        /// FIXME
+        /// Conflict
         /// </summary>
         Conflict,
 
         /// <summary>
-        /// FIXME
+        /// Unknown failure
         /// </summary>
         Unknown
     }

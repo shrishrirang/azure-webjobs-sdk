@@ -15,30 +15,20 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
         /// <summary>
         /// Account name associated with this lease
         /// </summary>
-        public string AccountName { get; set; } // FIXME: why is this accountname and not connection string?
+        public string AccountName { get; set; }
 
         /// <summary>
-        /// FIXME
+        /// List of nested logical namespaces that will contain the lease
         /// </summary>
-        public IList<string> Namespaces { get; set; }
+        public IReadOnlyList<string> Namespaces { get; set; }
 
         /// <summary>
-        /// FIXME
-        /// </summary>
-        public string Namespace { get; set; }
-
-        /// <summary>
-        /// FIXME
-        /// </summary>
-        public string Category { get; set; } // FIXME: change naming of namespace category lockid to container directory blobname
-
-        /// <summary>
-        /// FIXME
+        /// The lease name
         /// </summary>
         public string Name { get; set; }
 
         /// <summary>
-        /// FIXME
+        /// The lease ID
         /// </summary>
         public string LeaseId { get; set; }
 

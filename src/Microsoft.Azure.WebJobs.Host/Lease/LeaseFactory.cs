@@ -10,7 +10,7 @@ using Microsoft.Azure.WebJobs.Host.Storage;
 namespace Microsoft.Azure.WebJobs.Host.Lease
 {
     /// <summary>
-    /// FIXME
+    /// Factory for lease proxy
     /// </summary>
     internal class LeaseFactory
     {

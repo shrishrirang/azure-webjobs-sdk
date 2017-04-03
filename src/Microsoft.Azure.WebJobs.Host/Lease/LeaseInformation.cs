@@ -7,7 +7,7 @@ using System.Data;
 namespace Microsoft.Azure.WebJobs.Host.Lease
 {
     /// <summary>
-    /// FIXME
+    /// Lease info
     /// </summary>
     public class LeaseInformation // FIXME: review and mark classes as internal
     {
