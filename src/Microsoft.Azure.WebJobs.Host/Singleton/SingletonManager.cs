@@ -157,8 +157,7 @@ namespace Microsoft.Azure.WebJobs.Host
 
             _trace.Verbose(string.Format(CultureInfo.InvariantCulture, "Singleton lock acquired ({0})", lockId), source: TraceSource.Execution);
 
-            functionInstanceId = "test11";
-            if (!string.IsNullOrEmpty(functionInstanceId))
+            if (!string.IsNullOrEmpty(functionInstanceId)) // FIXME: this code path needs testing
             {
                 leaseDefinition.LockId = lockId; // FIXME: check this.. lockId, leaseId or null???
                 await _leasor.WriteLeaseBlobMetadataAsync(leaseDefinition, FunctionInstanceMetadataKey, functionInstanceId,

@@ -1,6 +1,7 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the MIT License. See License.txt in the project root for license information.
 
+using System;
 using System.Threading;
 using Microsoft.Azure.WebJobs.Host.Executors;
 using Microsoft.Azure.WebJobs.Host.Lease;
@@ -19,24 +20,20 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
         /// </summary>
         public static ILeasor CreateLeasor(IStorageAccountProvider storageAccountProvider)
         {
-            string accountName = ConnectionStringNames.Leasor;
-
-            if (string.IsNullOrWhiteSpace(AmbientConnectionStringProvider.Instance.GetConnectionString(accountName)))
-            {
-                accountName = ConnectionStringNames.Storage;
-            }
-
             ILeasor leasor = null;
-            SqlLeasor.TryGetAccountAsync(accountName, out leasor);
 
-            if (leasor == null)
+            string leasorType = ConfigurationUtility.GetSettingFromConfigOrEnvironment(Constants.LeasorTypeSettingName);
+
+            if (string.Equals(leasorType, Constants.SqlLeasorType, StringComparison.OrdinalIgnoreCase))
+            {
+                leasor = new SqlLeasor();
+            }
+            else
             {
                 leasor = new BlobLeasor(storageAccountProvider);
             }
 
             return leasor;
         }
-
-
     }
 }

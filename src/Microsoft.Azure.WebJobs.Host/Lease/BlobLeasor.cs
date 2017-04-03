@@ -28,6 +28,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
         /// </summary>
         public BlobLeasor(IStorageAccountProvider storageAccountProvider)
         {
+            // FIXME: param validation
             _storageAccountProvider = storageAccountProvider;
         }
 
@@ -206,7 +207,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
 
         // FIXME: make this private .. if possible
         // Also make this FetchLeaseBlobMetadataAsync
-        private async Task FetchLeaseBlobMetadataAsync(IStorageBlob blob, CancellationToken cancellationToken)
+        private async Task FetchLeaseBlobMetadataAsync(IStorageBlob blob, CancellationToken cancellationToken) // FIXME: metadata read and write functions need to be tested.
         {
             try
             {

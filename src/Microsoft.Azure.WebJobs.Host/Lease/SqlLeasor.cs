@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Microsoft.Azure.WebJobs.Host.Lease;
 using Newtonsoft.Json;
 
+// FIXME: Caching
 // FIXME: fix this whole file
 namespace Microsoft.Azure.WebJobs.Host.Lease
 {
@@ -20,12 +21,14 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
     {
         private static readonly string InstanceId = Guid.NewGuid().ToString();
 
+        /*
         /// <summary>
         /// FIXME
         /// </summary>
-        public SqlLeasor()
-        {
-        }
+        //public SqlLeasor()
+        //{
+        //}
+        */
 
         /// <summary>
         /// FIXME
@@ -103,7 +106,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
             };
 
             var connectionString = GetConnectionString(leaseDefinition.AccountName);
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(connectionString)) // FIXME: Use CreateSqlConnection and club GetConnectionString and new call together.
             {
                 connection.Open();
                 using (SqlCommand cmd = connection.CreateCommand())
@@ -192,26 +195,39 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
         /// <summary>
         /// FIXME
         /// </summary>
-        public static bool TryGetAccountAsync(string accountName, out ILeasor leasor)
-        {
-            //leasor = null;
-            //return false;
+        //public static bool TryCreateAsync(out ILeasor leasor) // FIXME: do this the very first time
+        //{
+        //    //leasor = new SqlLeasor();
+        //    //return true;
 
-            leasor = new SqlLeasor();
-            return true;
+        //    string connectionString = AmbientConnectionStringProvider.Instance.GetConnectionString(ConnectionStringNames.Leasor);
+        //    if (string.IsNullOrWhiteSpace(connectionString))
+        //        return false;
 
-            //var connectionString = AmbientConnectionStringProvider.Instance.GetConnectionString(accountName);
-            //if (string.IsNullOrWhiteSpace(connectionString))
-            //    return false; // FIXME: identify if this is a sql connection string
+        //    // Validate credentials
 
-            //return false;
-        }
+        //    try
+        //    {
+        //        using (SqlConnection connection = new SqlConnection(connectionString))
+        //        {
+        //            connection.Open();
+        //        }
+        //    }
+        //    catch (Exception)
+        //    {
+        //        // Assume that the failure is because the connection string is not a SQL connection string
+        //        return false;
+        //    }
+
+        //    return true;
+        //}
+        // FIXME: Verify logging across all files
 
         private string GetConnectionString(string accountName) // FIXME: revamp how account name and connection strings are handled for both blobleasor and sqlleasor, also for leasorfactory
         {
-            //return AmbientConnectionStringProvider.Instance.GetConnectionString(accountName);
-            string connectionString = "FIXME";
-            
+            // FIXME
+            string connectionString = AmbientConnectionStringProvider.Instance.GetConnectionString(accountName);
+
             return connectionString;
         }
 
