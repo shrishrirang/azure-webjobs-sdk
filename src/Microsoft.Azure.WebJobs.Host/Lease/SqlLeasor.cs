@@ -27,13 +27,15 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
         {
             try
             {
-                string connectionString = AmbientConnectionStringProvider.Instance.GetConnectionString(ConnectionStringNames.Leasor);
+                string connectionString = GetConnectionString(ConnectionStringNames.Leasor);
 
                 if (string.IsNullOrWhiteSpace(connectionString))
                 {
                     return false;
                 }
 
+                // Try creating a SQL connection. This will implicitly parse the connection string
+                // and throw an exception if it fails.
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                 }
@@ -234,9 +236,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
         // FIXME: Verify logging across all files
         private static string GetConnectionString(string accountName) // FIXME: revamp how account name and connection strings are handled for both blobleasor and sqlleasor, also for leasorfactory
         {
-            // FIXME
-            string connectionString = AmbientConnectionStringProvider.Instance.GetConnectionString(accountName);
-            return connectionString;
+            return AmbientConnectionStringProvider.Instance.GetConnectionString(accountName);
         }
 
         private async Task<bool> AcquireOrRenewLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
