@@ -22,9 +22,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
         {
             ILeasor leasor = null;
 
-            string leasorType = ConfigurationUtility.GetSettingFromConfigOrEnvironment(Constants.LeasorTypeSettingName);
-
-            if (string.Equals(leasorType, Constants.SqlLeasorType, StringComparison.OrdinalIgnoreCase))
+            if (SqlLeasor.IsSqlLeaseType())
             {
                 leasor = new SqlLeasor();
             }

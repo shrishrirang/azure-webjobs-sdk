@@ -4,6 +4,8 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
+using System.Data.Odbc;
 using System.Data.SqlClient;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,14 +23,25 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
     {
         private static readonly string InstanceId = Guid.NewGuid().ToString();
 
-        /*
-        /// <summary>
-        /// FIXME
-        /// </summary>
-        //public SqlLeasor()
-        //{
-        //}
-        */
+        public static bool IsSqlLeaseType()
+        {
+            bool isSqlLeaseType;
+            try
+            {
+                string connectionString = AmbientConnectionStringProvider.Instance.GetConnectionString(ConnectionStringNames.Leasor);
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                }
+
+                isSqlLeaseType = true;
+            }
+            catch (Exception)
+            {
+                isSqlLeaseType = false;
+            }
+
+            return isSqlLeaseType;
+        }
 
         /// <summary>
         /// FIXME
@@ -108,7 +121,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
             var connectionString = GetConnectionString(leaseDefinition.AccountName);
             using (SqlConnection connection = new SqlConnection(connectionString)) // FIXME: Use CreateSqlConnection and club GetConnectionString and new call together.
             {
-                connection.Open();
+                connection.Open(); // should all calls be async to open and  executenonquery?
                 using (SqlCommand cmd = connection.CreateCommand())
                 {
                     cmd.CommandType = CommandType.StoredProcedure;
@@ -223,7 +236,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
         //}
         // FIXME: Verify logging across all files
 
-        private string GetConnectionString(string accountName) // FIXME: revamp how account name and connection strings are handled for both blobleasor and sqlleasor, also for leasorfactory
+        private static string GetConnectionString(string accountName) // FIXME: revamp how account name and connection strings are handled for both blobleasor and sqlleasor, also for leasorfactory
         {
             // FIXME
             string connectionString = AmbientConnectionStringProvider.Instance.GetConnectionString(accountName);

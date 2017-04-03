@@ -307,31 +307,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
                 }
             }
         }
-
-
-
-
-        private IStorageBlobDirectory GetLockDirectory(string accountName, string leaseNamespace, string leaseCategory)
-        {
-            IStorageAccount storageAccount = null;
-            // FIXME: what if accountName is null?
-
-            // FIXME: temporarily disabling caching. need to update the caching logic to support absence of directory name (category name)
-            if (!_storageAccountMap.TryGetValue(accountName, out storageAccount))
-            {
-                storageAccount = _storageAccountProvider.GetAccountAsync(accountName, CancellationToken.None).Result;
-            }
-
-            // singleton requires block blobs, cannot be premium
-            storageAccount.AssertTypeOneOf(StorageAccountType.GeneralPurpose, StorageAccountType.BlobOnly);
-                IStorageBlobClient blobClient = storageAccount.CreateBlobClient();
-                IStorageBlobContainer container = blobClient.GetContainerReference(leaseNamespace);
-                IStorageBlobDirectory blobDirectory = container.GetDirectoryReference(leaseCategory);
-                _lockDirectoryMap[accountName] = blobDirectory;
-            }
-
-            return storageDirectory;
-        }
+        
     }
 }
 
