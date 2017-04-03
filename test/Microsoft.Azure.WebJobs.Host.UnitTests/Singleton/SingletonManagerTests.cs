@@ -126,7 +126,7 @@ namespace Microsoft.Azure.WebJobs.Host.UnitTests.Singleton
             SingletonManager.SingletonLockHandle lockHandle = (SingletonManager.SingletonLockHandle)await _singletonManager.TryLockAsync(TestLockId, TestInstanceId, attribute, cancellationToken);
 
             Assert.Same(_mockStorageBlob.Object, lockHandle.Blob);
-            Assert.Equal(TestLeaseId, lockHandle.LeaseDefinition.LockId);
+            Assert.Equal(TestLeaseId, lockHandle.LeaseDefinition.Name);
             Assert.Equal(1, _mockStorageBlob.Object.Metadata.Keys.Count);
             Assert.Equal(_mockStorageBlob.Object.Metadata[SingletonManager.FunctionInstanceMetadataKey], TestInstanceId);
         }
@@ -152,7 +152,7 @@ namespace Microsoft.Azure.WebJobs.Host.UnitTests.Singleton
             SingletonManager.SingletonLockHandle lockHandle = (SingletonManager.SingletonLockHandle)await _singletonManager.TryLockAsync(TestLockId, TestInstanceId, attribute, cancellationToken);
 
             Assert.Same(_mockStorageBlob.Object, lockHandle.Blob);
-            Assert.Equal(TestLeaseId, lockHandle.LeaseDefinition.LockId);
+            Assert.Equal(TestLeaseId, lockHandle.LeaseDefinition.Name);
             Assert.Equal(1, _mockStorageBlob.Object.Metadata.Keys.Count);
             Assert.Equal(_mockStorageBlob.Object.Metadata[SingletonManager.FunctionInstanceMetadataKey], TestInstanceId);
 
@@ -198,7 +198,7 @@ namespace Microsoft.Azure.WebJobs.Host.UnitTests.Singleton
             SingletonManager.SingletonLockHandle lockHandle = (SingletonManager.SingletonLockHandle)await _singletonManager.TryLockAsync(TestLockId, TestInstanceId, attribute, cancellationToken);
 
             Assert.NotNull(lockHandle);
-            Assert.Equal(TestLeaseId, lockHandle.LeaseDefinition.LockId);
+            Assert.Equal(TestLeaseId, lockHandle.LeaseDefinition.Name);
             Assert.Equal(numRetries, count - 1);
             Assert.NotNull(lockHandle.LeaseRenewalTimer);
 
@@ -268,7 +268,7 @@ namespace Microsoft.Azure.WebJobs.Host.UnitTests.Singleton
                 Blob = _mockStorageBlob.Object,
                 LeaseDefinition = new LeaseDefinition
                 {
-                    LockId = TestLeaseId
+                    Name = TestLeaseId
                 },
                 LeaseRenewalTimer = mockRenewalTimer.Object
             };

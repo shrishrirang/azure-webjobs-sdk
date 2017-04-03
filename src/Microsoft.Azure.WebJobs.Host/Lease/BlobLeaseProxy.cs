@@ -137,7 +137,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
                 lockBlob.Metadata.Add(key, value);
 
                 await lockBlob.SetMetadataAsync(
-                    accessCondition: new AccessCondition { LeaseId = leaseDefinition.LockId },
+                    accessCondition: new AccessCondition { LeaseId = leaseDefinition.Name },
                     options: null,
                     operationContext: null,
                     cancellationToken: cancellationToken);
@@ -311,12 +311,12 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
             IStorageBlockBlob blob;
             if (string.IsNullOrWhiteSpace(leaseDefinition.Category))
             {
-                blob = container.GetBlockBlobReference(leaseDefinition.LockId);
+                blob = container.GetBlockBlobReference(leaseDefinition.Name);
             }
             else
             {
                 IStorageBlobDirectory blobDirectory = container.GetDirectoryReference(leaseDefinition.Category);
-                blob = blobDirectory.GetBlockBlobReference(leaseDefinition.LockId);
+                blob = blobDirectory.GetBlockBlobReference(leaseDefinition.Name);
             }
 
             return blob;

@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See License.txt in the project root for license information.
 
 using System;
+using System.Collections;
+using System.Collections.Generic;
 
 namespace Microsoft.Azure.WebJobs.Host.Lease
 {
@@ -18,6 +20,11 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
         /// <summary>
         /// FIXME
         /// </summary>
+        public IList<string> Namespaces { get; set; }
+
+        /// <summary>
+        /// FIXME
+        /// </summary>
         public string Namespace { get; set; }
 
         /// <summary>
@@ -28,7 +35,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
         /// <summary>
         /// FIXME
         /// </summary>
-        public string LockId { get; set; }
+        public string Name { get; set; }
 
         /// <summary>
         /// FIXME

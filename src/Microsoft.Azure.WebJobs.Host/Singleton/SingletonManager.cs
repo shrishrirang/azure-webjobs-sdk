@@ -109,9 +109,10 @@ namespace Microsoft.Azure.WebJobs.Host
             var leaseDefinition = new LeaseDefinition
             {
                 AccountName = GetAccountName(attribute),
+                Namespaces = new List<string> {  HostContainerNames.Hosts, HostDirectoryNames.SingletonLocks },
                 Namespace = HostContainerNames.Hosts,
                 Category = HostDirectoryNames.SingletonLocks,
-                LockId = lockId,
+                Name = lockId,
                 Period = lockPeriod
             };
 
@@ -144,7 +145,7 @@ namespace Microsoft.Azure.WebJobs.Host
             if (!string.IsNullOrEmpty(functionInstanceId))
             {
                 // FIXME: check this.. lockId, leaseId or null???
-                leaseDefinition.LockId = lockId;
+                leaseDefinition.Name = lockId;
                 await _leaseProxy.WriteLeaseMetadataAsync(leaseDefinition, FunctionInstanceMetadataKey, functionInstanceId,
                     cancellationToken);
             }
@@ -316,9 +317,10 @@ namespace Microsoft.Azure.WebJobs.Host
             var leaseDefinition = new LeaseDefinition
             {
                 AccountName = GetAccountName(attribute),
+                Namespaces = new List<string> { HostContainerNames.Hosts, HostDirectoryNames.SingletonLocks },
                 Namespace = HostContainerNames.Hosts,
                 Category = HostDirectoryNames.SingletonLocks,
-                LockId = lockId,
+                Name = lockId,
             };
 
             LeaseInformation leaseInfo = await _leaseProxy.ReadLeaseInfoAsync(leaseDefinition, cancellationToken);
@@ -388,7 +390,7 @@ namespace Microsoft.Azure.WebJobs.Host
                 {
                     AccessCondition condition = new AccessCondition
                     {
-                        LeaseId = _leaseDefinition.LockId
+                        LeaseId = _leaseDefinition.Name
                     };
                     DateTimeOffset requestStart = DateTimeOffset.UtcNow;
                     await _leaseProxy.RenewLeaseAsync(_leaseDefinition, cancellationToken);
@@ -405,7 +407,7 @@ namespace Microsoft.Azure.WebJobs.Host
                         // The next execution should occur more quickly (try to renew the lease before it expires).
                         delay = _speedupStrategy.GetNextDelay(executionSucceeded: false);
                         _trace.Warning(string.Format(CultureInfo.InvariantCulture, "Singleton lock renewal failed for blob '{0}' with error code {1}. Retry renewal in {2} milliseconds.",
-                            _leaseDefinition.LockId, FormatErrorCode(exception), delay.TotalMilliseconds), source: TraceSource.Execution);
+                            _leaseDefinition.Name, FormatErrorCode(exception), delay.TotalMilliseconds), source: TraceSource.Execution);
                     }
                     else
                     {
@@ -416,7 +418,7 @@ namespace Microsoft.Azure.WebJobs.Host
                         int lastRenewalMilliseconds = (int)_lastRenewalLatency.TotalMilliseconds;
 
                         _trace.Error(string.Format(CultureInfo.InvariantCulture, "Singleton lock renewal failed for blob '{0}' with error code {1}. The last successful renewal completed at {2} ({3} milliseconds ago) with a duration of {4} milliseconds. The lease period was {5} milliseconds.",
-                            _leaseDefinition.LockId, FormatErrorCode(exception), lastRenewalFormatted, millisecondsSinceLastSuccess, lastRenewalMilliseconds, leasePeriodMilliseconds));
+                            _leaseDefinition.Name, FormatErrorCode(exception), lastRenewalFormatted, millisecondsSinceLastSuccess, lastRenewalMilliseconds, leasePeriodMilliseconds));
 
                         // If we've lost the lease or cannot re-establish it, we want to fail any
                         // in progress function execution

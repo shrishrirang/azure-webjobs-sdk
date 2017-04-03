@@ -302,16 +302,16 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
                 throw new InvalidOperationException(string.Format(CultureInfo.InvariantCulture, "Invalid lease Category: {0}", leaseDefinition.Category));
             }
 
-            if (leaseDefinition.LockId.Contains("|"))
+            if (leaseDefinition.Name.Contains("|"))
             {
-                throw new InvalidOperationException(string.Format(CultureInfo.InvariantCulture, "Invalid lease LockId: {0}", leaseDefinition.LockId));
+                throw new InvalidOperationException(string.Format(CultureInfo.InvariantCulture, "Invalid lease Name: {0}", leaseDefinition.Name));
             }
         }
 
         private static string GetLeaseName(LeaseDefinition leaseDefinition)
         {
             // Also make sure that none of these have a pipe character in them. FIXME.
-            return string.Format(CultureInfo.InvariantCulture, "{0}|{1}|{2}", leaseDefinition.Namespace, leaseDefinition.Category, leaseDefinition.LockId);
+            return string.Format(CultureInfo.InvariantCulture, "{0}|{1}|{2}", leaseDefinition.Namespace, leaseDefinition.Category, leaseDefinition.Name);
         }
     }
 }
