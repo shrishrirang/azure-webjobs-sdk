@@ -109,7 +109,7 @@ namespace Microsoft.Azure.WebJobs.Host.Executors
 
             if (singletonManager == null)
             {
-                singletonManager = new SingletonManager(storageAccountProvider, exceptionHandler, config.Singleton, trace, hostIdProvider, services.GetService<INameResolver>(), services.GetService<ILeasor>());
+                singletonManager = new SingletonManager(services.GetService<ILeasor>(), exceptionHandler, config.Singleton, trace, hostIdProvider, services.GetService<INameResolver>());
                 services.AddService<SingletonManager>(singletonManager);
             }
 

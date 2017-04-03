@@ -25,22 +25,26 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
 
         public static bool IsSqlLeaseType()
         {
-            bool isSqlLeaseType;
             try
             {
                 string connectionString = AmbientConnectionStringProvider.Instance.GetConnectionString(ConnectionStringNames.Leasor);
+
+                if (string.IsNullOrWhiteSpace(connectionString))
+                {
+                    return false;
+                }
+
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                 }
 
-                isSqlLeaseType = true;
+                return true;
             }
             catch (Exception)
             {
-                isSqlLeaseType = false;
             }
 
-            return isSqlLeaseType;
+            return false;
         }
 
         /// <summary>
@@ -110,7 +114,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
         /// <summary>
         /// FIXME
         /// </summary>
-        public Task WriteLeaseBlobMetadataAsync(LeaseDefinition leaseDefinition, string key,
+        public Task WriteLeaseMetadataAsync(LeaseDefinition leaseDefinition, string key,
             string value, CancellationToken cancellationToken)
         {
             var metadata = new Dictionary<string, string>

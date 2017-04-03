@@ -15,56 +15,24 @@ using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace Microsoft.Azure.WebJobs.Host.Lease
 {
-    /// <summary>
-    /// FIXME
-    /// </summary>
+    // Azure Storage Blob based lease implementation
     internal class BlobLeasor : ILeasor
     {
-        private IStorageAccountProvider _storageAccountProvider;
-        private ConcurrentDictionary<string, IStorageAccount> _storageAccountMap = new ConcurrentDictionary<string, IStorageAccount>(StringComparer.OrdinalIgnoreCase);
+        private readonly IStorageAccountProvider _storageAccountProvider;
+        private readonly ConcurrentDictionary<string, IStorageAccount> _storageAccountMap = new ConcurrentDictionary<string, IStorageAccount>(StringComparer.OrdinalIgnoreCase);
 
-        /// <summary>
-        /// FIXME
-        /// </summary>
         public BlobLeasor(IStorageAccountProvider storageAccountProvider)
         {
-            // FIXME: param validation
+            if (storageAccountProvider == null)
+            {
+                throw new ArgumentException("storageAccountProvider");
+            }
+
             _storageAccountProvider = storageAccountProvider;
         }
 
-        private IStorageBlockBlob GetBlob(LeaseDefinition leaseDefinition)
-        {
-            var accountName = leaseDefinition.AccountName;
-
-            // FIXME: what if accountName is null?
-            IStorageAccount storageAccount;
-            if (!_storageAccountMap.TryGetValue(accountName, out storageAccount))
-            {
-                storageAccount = _storageAccountProvider.GetAccountAsync(accountName, CancellationToken.None).Result;
-                storageAccount.AssertTypeOneOf(StorageAccountType.GeneralPurpose, StorageAccountType.BlobOnly);
-                _storageAccountMap[accountName] = storageAccount;
-            }
-
-            // singleton requires block blobs, cannot be premium
-            IStorageBlobClient blobClient = storageAccount.CreateBlobClient();
-            IStorageBlobContainer container = blobClient.GetContainerReference(leaseDefinition.Namespace);
-
-            IStorageBlockBlob blob;
-            if (string.IsNullOrWhiteSpace(leaseDefinition.Category))
-            {
-                blob = container.GetBlockBlobReference(leaseDefinition.LockId);
-            }
-            else
-            {
-                IStorageBlobDirectory blobDirectory = container.GetDirectoryReference(leaseDefinition.Category);
-                blob = blobDirectory.GetBlockBlobReference(leaseDefinition.LockId);
-            }
-
-            return blob;
-        }
-
         /// <summary>
-        /// FIXME
+        /// <see cref="ILeasor.TryAcquireLeaseAsync"/>
         /// </summary>
         public async Task<string> TryAcquireLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
         {
@@ -79,16 +47,17 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
         }
 
         /// <summary>
-        /// FIXME
+        /// <see cref="ILeasor.AcquireLeaseAsync"/>
         /// </summary>
         public async Task<string> AcquireLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
         {
-            IStorageBlockBlob lockBlob = GetBlob(leaseDefinition);
-
+            IStorageBlockBlob lockBlob = null;
             try
             {
-                // Optimistically try to acquire the lease. The blob may not yet
-                // exist. If it doesn't we handle the 404, create it, and retry below
+                lockBlob = GetBlob(leaseDefinition);
+
+                // Optimistically try to acquire the lease. The blob may not exist yet.
+                // If it doesn't exist, we handle the 404, create it, and retry below.
                 return await lockBlob.AcquireLeaseAsync(leaseDefinition.Period, leaseDefinition.LeaseId, cancellationToken);
             }
             catch (StorageException exception)
@@ -114,10 +83,9 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
                 }
             }
 
-            await TryCreateAsync(lockBlob, cancellationToken);
-
             try
             {
+                await TryCreateBlobAsync(lockBlob, cancellationToken);
                 return await lockBlob.AcquireLeaseAsync(leaseDefinition.Period, null, cancellationToken);
             }
             catch (StorageException exception)
@@ -133,37 +101,50 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
         }
 
         /// <summary>
-        /// FIXME
+        /// <see cref="ILeasor.RenewLeaseAsync"/>
         /// </summary>
         public Task RenewLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
         {
-            // FIXME: Is there a scenario where leaseDefinition.accountName can change every time? If not, do we really need it to be parameterized? Can this just be a constructor param?
-            IStorageBlockBlob lockBlob = GetBlob(leaseDefinition);
-            var accessCondition = new AccessCondition
+            try
             {
-                LeaseId = leaseDefinition.LeaseId
-            };
+                IStorageBlockBlob lockBlob = GetBlob(leaseDefinition);
+                var accessCondition = new AccessCondition
+                {
+                    LeaseId = leaseDefinition.LeaseId
+                };
 
-            return lockBlob.RenewLeaseAsync(accessCondition, null, null, cancellationToken);
+                return lockBlob.RenewLeaseAsync(accessCondition, null, null, cancellationToken);
+            }
+            catch (StorageException exception)
+            {
+                throw new LeaseException(LeaseFailureReason.Unknown, exception);
+            }
         }
 
         /// <summary>
-        /// FIXME
+        /// <see cref="ILeasor.WriteLeaseMetadataAsync"/>
         /// </summary>
-        public async Task WriteLeaseBlobMetadataAsync(LeaseDefinition leaseDefinition, string key, string value, CancellationToken cancellationToken)
+        public async Task WriteLeaseMetadataAsync(LeaseDefinition leaseDefinition, string key, string value, CancellationToken cancellationToken)
         {
-            IStorageBlockBlob lockBlob = GetBlob(leaseDefinition);
-            lockBlob.Metadata.Add(key, value);
+            try
+            {
+                IStorageBlockBlob lockBlob = GetBlob(leaseDefinition);
+                lockBlob.Metadata.Add(key, value);
 
-            await lockBlob.SetMetadataAsync(
-                accessCondition: new AccessCondition { LeaseId = leaseDefinition.LockId },
-                options: null,
-                operationContext: null,
-                cancellationToken: cancellationToken);
+                await lockBlob.SetMetadataAsync(
+                    accessCondition: new AccessCondition { LeaseId = leaseDefinition.LockId },
+                    options: null,
+                    operationContext: null,
+                    cancellationToken: cancellationToken);
+            }
+            catch (StorageException exception)
+            {
+                throw new LeaseException(LeaseFailureReason.Unknown, exception);
+            }
         }
 
         /// <summary>
-        /// FIXME
+        /// <see cref="ILeasor.ReleaseLeaseAsync"/>
         /// </summary>
         public async Task ReleaseLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
         {
@@ -191,19 +172,44 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
                     }
                     else
                     {
-                        throw;
+                        throw new LeaseException(LeaseFailureReason.Unknown, exception);
                     }
                 }
                 else
                 {
-                    throw;
+                    throw new LeaseException(LeaseFailureReason.Unknown, exception);
                 }
             }
         }
 
-        // FIXME: make this private .. if possible
-        // Also make this FetchLeaseBlobMetadataAsync
-        private async Task FetchLeaseBlobMetadataAsync(IStorageBlob blob, CancellationToken cancellationToken) // FIXME: metadata read and write functions need to be tested.
+        /// <summary>
+        /// <see cref="ILeasor.ReadLeaseInfoAsync"/>
+        /// </summary>
+        public async Task<LeaseInformation> ReadLeaseInfoAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
+        {
+            try
+            {
+                IStorageBlob lockBlob = GetBlob(leaseDefinition);
+
+                await FetchLeaseBlobMetadataAsync(lockBlob, cancellationToken);
+
+                var leaseInformation = new LeaseInformation
+                {
+                    IsLeaseAvailable =
+                        (lockBlob.Properties.LeaseState == LeaseState.Available &&
+                         lockBlob.Properties.LeaseStatus == LeaseStatus.Unlocked),
+                    Metadata = lockBlob.Metadata
+                };
+
+                return leaseInformation;
+            }
+            catch(StorageException exception)
+            {
+                throw new LeaseException(LeaseFailureReason.Unknown, exception);
+            }
+        }
+
+        private static async Task FetchLeaseBlobMetadataAsync(IStorageBlob blob, CancellationToken cancellationToken) // FIXME: metadata read and write functions need to be tested.
         {
             try
             {
@@ -223,35 +229,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
             }
         }
 
-        /// <summary>
-        /// FIXME
-        /// </summary>
-        public async Task<LeaseInformation> ReadLeaseInfoAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
-        {
-            var leaseInformation = new LeaseInformation
-            {
-                IsLeaseAvailable = false
-            };
-
-            IStorageBlob lockBlob = GetBlob(leaseDefinition);
-
-            await FetchLeaseBlobMetadataAsync(lockBlob, cancellationToken);
-
-            // if the lease is Available, then there is no current owner
-            // (any existing owner value is the last owner that held the lease)
-            if (lockBlob.Properties.LeaseState != LeaseState.Available ||
-                lockBlob.Properties.LeaseStatus != LeaseStatus.Unlocked)
-            {
-                leaseInformation.IsLeaseAvailable = false;
-            }
-
-            leaseInformation.Metadata = lockBlob.Metadata;
-
-            return leaseInformation;
-        }
-
-
-        private static async Task<bool> TryCreateAsync(IStorageBlockBlob blob, CancellationToken cancellationToken)
+        private static async Task<bool> TryCreateBlobAsync(IStorageBlockBlob blob, CancellationToken cancellationToken)
         {
             bool isContainerNotFoundException = false;
 
@@ -286,6 +264,9 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
             }
 
             Debug.Assert(isContainerNotFoundException);
+
+            // Create the container if it does not exist.
+            // Directories need not be created as they are created automatically, if needed.
             await blob.Container.CreateIfNotExistsAsync(cancellationToken);
 
             try
@@ -307,8 +288,36 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
                 }
             }
         }
-        
+
+        private IStorageBlockBlob GetBlob(LeaseDefinition leaseDefinition)
+        {
+            var accountName = leaseDefinition.AccountName;
+
+            // FIXME: what if accountName is null?
+            IStorageAccount storageAccount;
+            if (!_storageAccountMap.TryGetValue(accountName, out storageAccount))
+            {
+                storageAccount = _storageAccountProvider.GetAccountAsync(accountName, CancellationToken.None).Result;
+                // singleton requires block blobs, cannot be premium
+                storageAccount.AssertTypeOneOf(StorageAccountType.GeneralPurpose, StorageAccountType.BlobOnly);
+                _storageAccountMap[accountName] = storageAccount;
+            }
+
+            IStorageBlobClient blobClient = storageAccount.CreateBlobClient();
+            IStorageBlobContainer container = blobClient.GetContainerReference(leaseDefinition.Namespace);
+
+            IStorageBlockBlob blob;
+            if (string.IsNullOrWhiteSpace(leaseDefinition.Category))
+            {
+                blob = container.GetBlockBlobReference(leaseDefinition.LockId);
+            }
+            else
+            {
+                IStorageBlobDirectory blobDirectory = container.GetDirectoryReference(leaseDefinition.Category);
+                blob = blobDirectory.GetBlockBlobReference(leaseDefinition.LockId);
+            }
+
+            return blob;
+        }
     }
 }
-
-// FIXME: Check if the refactoring causes any caching to go away in either webjobs or script

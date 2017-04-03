@@ -61,15 +61,15 @@ namespace Microsoft.Azure.WebJobs.Host
         {
         }
 
-        public SingletonManager(IStorageAccountProvider accountProvider, IWebJobsExceptionHandler exceptionHandler, SingletonConfiguration config, TraceWriter trace, IHostIdProvider hostIdProvider, INameResolver nameResolver = null, ILeasor leasor = null)
+        public SingletonManager(ILeasor leasor, IWebJobsExceptionHandler exceptionHandler, SingletonConfiguration config, TraceWriter trace, IHostIdProvider hostIdProvider, INameResolver nameResolver = null)
         {
             // FIXME: accountProvider param exists only to keep test compilation happy. fix it.
+            _leasor = leasor;
             _nameResolver = nameResolver;
             _exceptionHandler = exceptionHandler;
             _config = config;
             _trace = trace;
             _hostIdProvider = hostIdProvider;
-            _leasor = leasor; // FIXME: remove param accountProvider
         }
 
         internal virtual SingletonConfiguration Config
@@ -160,7 +160,7 @@ namespace Microsoft.Azure.WebJobs.Host
             if (!string.IsNullOrEmpty(functionInstanceId)) // FIXME: this code path needs testing
             {
                 leaseDefinition.LockId = lockId; // FIXME: check this.. lockId, leaseId or null???
-                await _leasor.WriteLeaseBlobMetadataAsync(leaseDefinition, FunctionInstanceMetadataKey, functionInstanceId,
+                await _leasor.WriteLeaseMetadataAsync(leaseDefinition, FunctionInstanceMetadataKey, functionInstanceId,
                     cancellationToken);
             }
 

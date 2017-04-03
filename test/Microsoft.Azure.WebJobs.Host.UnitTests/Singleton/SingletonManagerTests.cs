@@ -79,7 +79,7 @@ namespace Microsoft.Azure.WebJobs.Host.UnitTests.Singleton
             _singletonConfig.LockAcquisitionTimeout = TimeSpan.FromMilliseconds(200);
 
             _nameResolver = new TestNameResolver();
-            _singletonManager = new SingletonManager(_mockAccountProvider.Object, _mockExceptionDispatcher.Object, _singletonConfig, _trace, new FixedHostIdProvider(TestHostId), _nameResolver);
+            _singletonManager = new SingletonManager(LeasorFactory.CreateLeasor(_mockAccountProvider.Object), _mockExceptionDispatcher.Object, _singletonConfig, _trace, new FixedHostIdProvider(TestHostId), _nameResolver);
 
             _singletonManager.MinimumLeaseRenewalInterval = TimeSpan.FromMilliseconds(250);
         }
