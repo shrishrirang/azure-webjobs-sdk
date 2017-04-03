@@ -14,10 +14,6 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
     /// </summary>
     internal class LeasorFactory
     {
-        // FIXME: what if no storage connection strings are defined? that should be supported too. Introduce InMemoryLeasor that implements ILeasor.cs
-        /// <summary>
-        /// FIXME
-        /// </summary>
         public static ILeasor CreateLeasor(IStorageAccountProvider storageAccountProvider)
         {
             ILeasor leasor = null;

@@ -6,26 +6,22 @@ using System;
 namespace Microsoft.Azure.WebJobs.Host.Lease
 {
     /// <summary>
-    /// FIXME
+    /// A Lease Exception
     /// </summary>
     public class LeaseException : Exception // FIXME: dos and donts of extending exceptions
-    {//FIXME: rename file.
+    {
         /// <summary>
-        /// FIXME
+        /// Constructor
         /// </summary>
-        /// <param name="failureReason"></param>
-        /// <param name="innerException"></param>
-        public LeaseException(LeaseFailureReason failureReason, Exception innerException) // FIXME: message needed
+        public LeaseException(LeaseFailureReason failureReason, Exception innerException)
             : base(null, innerException)
         {
             FailureReason = failureReason;
         }
 
         /// <summary>
-        /// FIXME
+        /// Lease failure reason
         /// </summary>
         public LeaseFailureReason FailureReason { get; protected set; }
-
-        // FIXME: do we need to implement tostring?
     }
 }

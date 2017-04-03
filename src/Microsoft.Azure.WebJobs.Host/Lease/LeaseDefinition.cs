@@ -6,12 +6,12 @@ using System;
 namespace Microsoft.Azure.WebJobs.Host.Lease
 {
     /// <summary>
-    /// FIXME
+    /// Lease definition
     /// </summary>
     public class LeaseDefinition
     {
         /// <summary>
-        /// FIXME
+        /// Account name associated with this lease
         /// </summary>
         public string AccountName { get; set; } // FIXME: why is this accountname and not connection string?
 
@@ -36,7 +36,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
         public string LeaseId { get; set; }
 
         /// <summary>
-        /// FIXME
+        /// Duration of the lease
         /// </summary>
         public TimeSpan Period { get; set; }
     }

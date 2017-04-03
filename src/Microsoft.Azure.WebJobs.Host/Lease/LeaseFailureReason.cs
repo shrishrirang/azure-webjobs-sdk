@@ -4,7 +4,7 @@
 namespace Microsoft.Azure.WebJobs.Host.Lease
 {
     /// <summary>
-    /// 
+    /// Cause of lease failure
     /// </summary>
     public enum LeaseFailureReason
     {
