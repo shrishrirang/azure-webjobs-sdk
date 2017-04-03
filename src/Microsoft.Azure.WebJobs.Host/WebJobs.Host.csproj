@@ -416,7 +416,7 @@
     <Compile Include="Lease\BlobLeasor.cs" />
     <Compile Include="Lease\LeaseDefinition.cs" />
     <Compile Include="Lease\LeaseInformation.cs" />
-    <Compile Include="Lease\LeaseResult.cs" />
+    <Compile Include="Lease\LeaseException.cs" />
     <Compile Include="Lease\LeaseFailureReason.cs" />
     <Compile Include="Lease\LeasorFactory.cs" />
     <Compile Include="Lease\SqlLeasor.cs" />
