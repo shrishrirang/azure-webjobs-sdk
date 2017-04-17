@@ -12,6 +12,7 @@ using System;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Azure.WebJobs.Host.Lease;
 using Xunit;
 
 namespace Microsoft.Azure.WebJobs.Host.TestCommon
@@ -119,6 +120,7 @@ namespace Microsoft.Azure.WebJobs.Host.TestCommon
 
             var types = new Type[] {
                 typeof(IHostInstanceLoggerProvider),
+                typeof(ILeaseProxy),
                 typeof(IFunctionInstanceLoggerProvider),
                 typeof(IFunctionOutputLoggerProvider),
                 typeof(IConsoleProvider),

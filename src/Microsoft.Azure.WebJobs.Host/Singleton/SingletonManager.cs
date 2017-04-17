@@ -343,7 +343,6 @@ namespace Microsoft.Azure.WebJobs.Host
 
         internal class SingletonLockHandle
         {
-            public IStorageBlockBlob Blob { get; set; }
             public LeaseDefinition LeaseDefinition { get; set; }
             public ITaskSeriesTimer LeaseRenewalTimer { get; set; }
         }
