@@ -12,6 +12,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 
+// TOOD: Renew, Release, etc should be able to work off of Lease ID just like the blob implementation does
+// The need to specify account account name, namespaces, etc is unnecessary for anything other than lease acquiring
+// For everything else, just the Lease ID should suffice.
+
 namespace Microsoft.Azure.WebJobs.Host.Lease
 {
     // Sql based lease implementation
@@ -265,6 +269,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
             }
         }
 
+        // TODO: LeaseDefinition.LeaseId should be used as the proposed LeaseId if it is defined
         private async Task<bool> TryAcquireOrRenewLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
         {
             var connectionString = GetConnectionString(leaseDefinition.AccountName);
@@ -301,6 +306,8 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
             {
                 leaseId += "&" + WebUtility.UrlEncode(leaseDefinition.Namespaces[1]);
             }
+
+            leaseId += "&" + WebUtility.UrlEncode(leaseDefinition.Name);
 
             return leaseId;
         }

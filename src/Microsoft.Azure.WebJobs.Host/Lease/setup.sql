@@ -44,10 +44,14 @@ BEGIN
         INSERT INTO [functions].[Leases] ([LeaseName], [RequestorName], [LeaseExpirationTimeSpan], [LastRenewal], [HasLease])
         VALUES (@LeaseName, @RequestorName, @LeaseExpirationTimeSpan, CURRENT_TIMESTAMP, 0)
 
+    COMMIT TRANSACTION
+    
     UPDATE [functions].[Leases]
     SET [HasLease] = 0
     WHERE [LeaseName] = @LeaseName AND [HasLease] = 1 AND [RequestorName] <> @RequestorName AND DATEDIFF(SECOND, [LastRenewal], CURRENT_TIMESTAMP) > @LeaseExpirationTimeSpan
 
+    BEGIN TRANSACTION
+    
     IF NOT EXISTS (SELECT * FROM [functions].[Leases] WHERE [LeaseName] = @LeaseName AND [HasLease] = 1)
         UPDATE [functions].[Leases]
         SET [HasLease] = 1
