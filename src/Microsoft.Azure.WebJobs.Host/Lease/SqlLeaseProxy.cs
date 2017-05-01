@@ -154,7 +154,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
                     using (SqlCommand cmd = connection.CreateCommand())
                     {
                         cmd.CommandType = CommandType.StoredProcedure;
-                        cmd.CommandText = "[functions].[leases_updateMetadata]";
+                        cmd.CommandText = "[function].[leases_updateMetadata]";
                         cmd.Parameters.Add("@LeaseName", SqlDbType.NVarChar, 127).Value = GetLeaseId(leaseDefinition);
                         cmd.Parameters.Add("@RequestorName", SqlDbType.NVarChar, 127).Value = InstanceId;
                         cmd.Parameters.Add("@Metadata", SqlDbType.NVarChar).Value = JsonConvert.SerializeObject(metadata);
@@ -203,7 +203,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
                     using (SqlCommand cmd = connection.CreateCommand())
                     {
                         cmd.CommandType = CommandType.StoredProcedure;
-                        cmd.CommandText = "[functions].leases_getMetadata";
+                        cmd.CommandText = "[function].leases_getMetadata";
                         cmd.Parameters.Add("@LeaseName", SqlDbType.NVarChar, 127).Value = GetLeaseId(leaseDefinition);
                         cmd.Parameters.Add("@RequestorName", SqlDbType.NVarChar, 127).Value = InstanceId;
                         cmd.Parameters.Add("@Metadata", SqlDbType.NVarChar, -1).Direction = ParameterDirection.Output;
@@ -255,7 +255,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
                     using (SqlCommand cmd = connection.CreateCommand())
                     {
                         cmd.CommandType = CommandType.StoredProcedure;
-                        cmd.CommandText = "[functions].[leases_release]";
+                        cmd.CommandText = "[function].[leases_release]";
                         cmd.Parameters.Add("@LeaseName", SqlDbType.NVarChar, 127).Value = GetLeaseId(leaseDefinition);
                         cmd.Parameters.Add("@RequestorName", SqlDbType.NVarChar, 127).Value = InstanceId;
 
@@ -280,7 +280,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
                 using (SqlCommand cmd = connection.CreateCommand())
                 {
                     cmd.CommandType = CommandType.StoredProcedure;
-                    cmd.CommandText = "[functions].[leases_tryAcquireOrRenew]";
+                    cmd.CommandText = "[function].[leases_tryAcquireOrRenew]";
                     cmd.Parameters.Add("@LeaseName", SqlDbType.NVarChar, 127).Value = GetLeaseId(leaseDefinition);
                     cmd.Parameters.Add("@RequestorName", SqlDbType.NVarChar, 127).Value = InstanceId;
                     cmd.Parameters.Add("@LeaseExpirationTimeSpan", SqlDbType.Int).Value = leaseDefinition.Period.TotalSeconds;
