@@ -12,6 +12,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 
+// TOOD: Renew, Release, etc should be able to work off of Lease ID just like the blob implementation does
+// The need to specify account account name, namespaces, etc is unnecessary for anything other than lease acquiring
+// For everything else, just the Lease ID should suffice.
+
 namespace Microsoft.Azure.WebJobs.Host.Lease
 {
     // Sql based lease implementation
@@ -150,7 +154,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
                     using (SqlCommand cmd = connection.CreateCommand())
                     {
                         cmd.CommandType = CommandType.StoredProcedure;
-                        cmd.CommandText = "[functions].[leases_updateMetadata]";
+                        cmd.CommandText = "[function].[leases_updateMetadata]";
                         cmd.Parameters.Add("@LeaseName", SqlDbType.NVarChar, 127).Value = GetLeaseId(leaseDefinition);
                         cmd.Parameters.Add("@RequestorName", SqlDbType.NVarChar, 127).Value = InstanceId;
                         cmd.Parameters.Add("@Metadata", SqlDbType.NVarChar).Value = JsonConvert.SerializeObject(metadata);
@@ -199,7 +203,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
                     using (SqlCommand cmd = connection.CreateCommand())
                     {
                         cmd.CommandType = CommandType.StoredProcedure;
-                        cmd.CommandText = "[functions].leases_getMetadata";
+                        cmd.CommandText = "[function].leases_getMetadata";
                         cmd.Parameters.Add("@LeaseName", SqlDbType.NVarChar, 127).Value = GetLeaseId(leaseDefinition);
                         cmd.Parameters.Add("@RequestorName", SqlDbType.NVarChar, 127).Value = InstanceId;
                         cmd.Parameters.Add("@Metadata", SqlDbType.NVarChar, -1).Direction = ParameterDirection.Output;
@@ -251,7 +255,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
                     using (SqlCommand cmd = connection.CreateCommand())
                     {
                         cmd.CommandType = CommandType.StoredProcedure;
-                        cmd.CommandText = "[functions].[leases_release]";
+                        cmd.CommandText = "[function].[leases_release]";
                         cmd.Parameters.Add("@LeaseName", SqlDbType.NVarChar, 127).Value = GetLeaseId(leaseDefinition);
                         cmd.Parameters.Add("@RequestorName", SqlDbType.NVarChar, 127).Value = InstanceId;
 
@@ -265,6 +269,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
             }
         }
 
+        // TODO: LeaseDefinition.LeaseId should be used as the proposed LeaseId if it is defined
         private async Task<bool> TryAcquireOrRenewLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
         {
             var connectionString = GetConnectionString(leaseDefinition.AccountName);
@@ -275,7 +280,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
                 using (SqlCommand cmd = connection.CreateCommand())
                 {
                     cmd.CommandType = CommandType.StoredProcedure;
-                    cmd.CommandText = "[functions].[leases_tryAcquireOrRenew]";
+                    cmd.CommandText = "[function].[leases_tryAcquireOrRenew]";
                     cmd.Parameters.Add("@LeaseName", SqlDbType.NVarChar, 127).Value = GetLeaseId(leaseDefinition);
                     cmd.Parameters.Add("@RequestorName", SqlDbType.NVarChar, 127).Value = InstanceId;
                     cmd.Parameters.Add("@LeaseExpirationTimeSpan", SqlDbType.Int).Value = leaseDefinition.Period.TotalSeconds;
@@ -301,6 +306,8 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
             {
                 leaseId += "&" + WebUtility.UrlEncode(leaseDefinition.Namespaces[1]);
             }
+
+            leaseId += "&" + WebUtility.UrlEncode(leaseDefinition.Name);
 
             return leaseId;
         }
