@@ -270,7 +270,7 @@ namespace Microsoft.Azure.WebJobs.Host.Lease
         }
 
         // TODO: LeaseDefinition.LeaseId should be used as the proposed LeaseId if it is defined
-        private async Task<bool> TryAcquireOrRenewLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
+        private static async Task<bool> TryAcquireOrRenewLeaseAsync(LeaseDefinition leaseDefinition, CancellationToken cancellationToken)
         {
             var connectionString = GetConnectionString(leaseDefinition.AccountName);
 
