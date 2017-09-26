@@ -20,6 +20,7 @@ using Microsoft.Azure.WebJobs.Host.Protocols;
 using Microsoft.Azure.WebJobs.Host.Queues;
 using Microsoft.Azure.WebJobs.Host.Queues.Bindings;
 using Microsoft.Azure.WebJobs.Host.Queues.Listeners;
+using Microsoft.Azure.WebJobs.Host.Singleton;
 using Microsoft.Azure.WebJobs.Host.Storage;
 using Microsoft.Azure.WebJobs.Host.Storage.Blob;
 using Microsoft.Azure.WebJobs.Host.Storage.Queue;
@@ -33,6 +34,9 @@ namespace Microsoft.Azure.WebJobs.Host.Executors
 {
     internal static class JobHostConfigurationExtensions
     {
+        // Hardcoded for now
+        public static bool UseSql = true;
+
         // Static initialization. Returns a service provider with some new services initialized. 
         // The new services:
         // - can retrieve static config like binders and converters; but the listeners haven't yet started.
@@ -122,6 +126,12 @@ namespace Microsoft.Azure.WebJobs.Host.Executors
                         storageAccountProvider,
                         trace,
                         logger);
+
+                    if (UseSql)
+                    {
+                        lockManager = new SqlLeaseDistributedLockManager();
+                    }
+
                     services.AddService<IDistributedLockManager>(lockManager);
                 }
 
