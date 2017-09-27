@@ -58,6 +58,8 @@ GO
 
         private const string OwnerKey = "_owner";
 
+        public const string ConnectionStringName = "Lease";
+
         public SqlLeaseDistributedLockManager()
         {
         }
@@ -185,7 +187,7 @@ GO
         {
             if (string.IsNullOrWhiteSpace(accountName))
             {
-                throw new InvalidOperationException("Lease account name not specified");
+                accountName = ConnectionStringName;
             }
 
             return AmbientConnectionStringProvider.Instance.GetConnectionString(accountName);
