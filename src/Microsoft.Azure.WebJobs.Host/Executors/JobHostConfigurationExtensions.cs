@@ -20,6 +20,7 @@ using Microsoft.Azure.WebJobs.Host.Protocols;
 using Microsoft.Azure.WebJobs.Host.Queues;
 using Microsoft.Azure.WebJobs.Host.Queues.Bindings;
 using Microsoft.Azure.WebJobs.Host.Queues.Listeners;
+using Microsoft.Azure.WebJobs.Host.Singleton;
 using Microsoft.Azure.WebJobs.Host.Storage;
 using Microsoft.Azure.WebJobs.Host.Storage.Blob;
 using Microsoft.Azure.WebJobs.Host.Storage.Queue;
@@ -122,6 +123,9 @@ namespace Microsoft.Azure.WebJobs.Host.Executors
                         storageAccountProvider,
                         trace,
                         logger);
+
+                    lockManager = new FileDistributedLockManager();
+
                     services.AddService<IDistributedLockManager>(lockManager);
                 }
 
