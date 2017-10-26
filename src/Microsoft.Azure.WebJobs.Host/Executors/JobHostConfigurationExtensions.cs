@@ -20,6 +20,7 @@ using Microsoft.Azure.WebJobs.Host.Protocols;
 using Microsoft.Azure.WebJobs.Host.Queues;
 using Microsoft.Azure.WebJobs.Host.Queues.Bindings;
 using Microsoft.Azure.WebJobs.Host.Queues.Listeners;
+using Microsoft.Azure.WebJobs.Host.Singleton;
 using Microsoft.Azure.WebJobs.Host.Storage;
 using Microsoft.Azure.WebJobs.Host.Storage.Blob;
 using Microsoft.Azure.WebJobs.Host.Storage.Queue;
@@ -118,10 +119,18 @@ namespace Microsoft.Azure.WebJobs.Host.Executors
                 IDistributedLockManager lockManager = services.GetService<IDistributedLockManager>();
                 if (lockManager == null)
                 {
-                    lockManager = new BlobLeaseDistributedLockManager(
-                        storageAccountProvider,
-                        trace,
-                        logger);
+                    if (String.CompareOrdinal(Environment.GetEnvironmentVariable("AzureWebJobsScriptMode"), "standalone") == 0)
+                    {
+                        lockManager = new FileDistributedLockManager();
+                    }
+                    else
+                    {
+                        lockManager = new BlobLeaseDistributedLockManager(
+                            storageAccountProvider,
+                            trace,
+                            logger);
+                    }
+
                     services.AddService<IDistributedLockManager>(lockManager);
                 }
 
