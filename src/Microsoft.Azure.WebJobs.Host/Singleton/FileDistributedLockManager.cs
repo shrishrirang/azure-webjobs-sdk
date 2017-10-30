@@ -87,7 +87,7 @@ namespace Microsoft.Azure.WebJobs.Host.Singleton
         private string GetFileShare(string account)
         {
             // FIXME
-            return @"\\shrirsp2\shrirsrw";
+            return @"c:\home";
         }
 
         private string GetLockDirectoryPath(string account, string lockId)
