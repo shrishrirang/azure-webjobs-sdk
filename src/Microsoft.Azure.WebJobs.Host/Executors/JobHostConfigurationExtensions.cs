@@ -122,6 +122,8 @@ namespace Microsoft.Azure.WebJobs.Host.Executors
                         storageAccountProvider,
                         trace,
                         logger);
+
+                    lockManager = new FileDistributedLockManager();
                     services.AddService<IDistributedLockManager>(lockManager);
                 }
 
