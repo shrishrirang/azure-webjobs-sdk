@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,7 +24,7 @@ namespace Microsoft.Azure.WebJobs.Host
             {
                 var lockFilePath = CreateLockFile(account, lockId, lockPeriod, lockOwnerId, proposedLeaseId);
 
-                if (await TryAcquireOrRenewLockAsync(account, lockId, lockPeriod, lockFilePath, cancellationToken))
+                if (await TryAcquireOrRenewLockAsync(account, lockId, lockFilePath))
                 {
                     return new FileLockHandle(account, lockId, lockPeriod, lockFilePath);
                 }
@@ -46,7 +47,7 @@ namespace Microsoft.Azure.WebJobs.Host
             // Update the lock file's timestamp. We will worry about whether renewal can be successfully performed or not in the next step
             TouchLockFile(handle.LockFilePath);
 
-            var renewalSucceeded = await TryAcquireOrRenewLockAsync(handle.Account, handle.LockId, handle.LockPeriod, handle.LockFilePath, CancellationToken.None);
+            var renewalSucceeded = await TryAcquireOrRenewLockAsync(handle.Account, handle.LockId, handle.LockFilePath);
 
             if (!renewalSucceeded)
             {
@@ -82,7 +83,7 @@ namespace Microsoft.Azure.WebJobs.Host
             return Task.CompletedTask;
         }
 
-        private Task<bool> TryAcquireOrRenewLockAsync(string account, string lockId, TimeSpan lockPeriod, string lockFilePath, CancellationToken cancellationToken)
+        private static Task<bool> TryAcquireOrRenewLockAsync(string account, string lockId, string lockFilePath)
         {
             var activeLockFile1 = GetActiveLockFile(account, lockId);
 
@@ -90,19 +91,20 @@ namespace Microsoft.Azure.WebJobs.Host
             return Task.FromResult(activeLockFile1 != null && activeLockFile1.FilePath.Equals(lockFilePath));
         }
 
-        private string GetFileShare(string account)
+        [SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "context")]
+        private static string GetFileShare(string account)
         {
             // FIXME
-            return Environment.GetEnvironmentVariable("HOME");
+            return Path.Combine(Environment.GetEnvironmentVariable("HOME"), "lease", account);
         }
 
-        private string GetLockDirectoryPath(string account, string lockId)
+        private static string GetLockDirectoryPath(string account, string lockId)
         {
             return Path.Combine(GetFileShare(account), lockId);
         }
 
         // TODO: Need to remove stale files, periodically
-        private string CreateLockFile(string account, string lockId, TimeSpan lockPeriod, string lockOwnerId, string proposedLeaseId)
+        private static string CreateLockFile(string account, string lockId, TimeSpan lockPeriod, string lockOwnerId, string proposedLeaseId)
         {
             var dir = GetLockDirectoryPath(account, lockId);
 
@@ -113,8 +115,8 @@ namespace Microsoft.Azure.WebJobs.Host
 
             Dictionary<string, object> lockFileContent = new Dictionary<string, object>
             {
-                {"duration", lockPeriod.TotalSeconds},
-                { "owner", lockOwnerId}
+                { "duration", lockPeriod.TotalSeconds },
+                { "owner", lockOwnerId }
             };
 
             File.WriteAllText(lockFilePath, JsonConvert.SerializeObject(lockFileContent));
@@ -122,13 +124,13 @@ namespace Microsoft.Azure.WebJobs.Host
             return lockFilePath;
         }
 
-        private void TouchLockFile(string lockFilePath)
+        private static void TouchLockFile(string lockFilePath)
         {
             File.AppendAllText(lockFilePath, " ");
         }
 
         // Get the lock file that corresponds to the instance that has acquired the lock
-        private LockFileInfo GetActiveLockFile(string account, string lockId)
+        private static LockFileInfo GetActiveLockFile(string account, string lockId)
         {
             var lockFiles = GetLockInfo(account, lockId);
 
@@ -155,7 +157,6 @@ namespace Microsoft.Azure.WebJobs.Host
                 {
                     activeLockFile = lockFile;
                 }
-
             }
 
             return activeLockFile;
@@ -164,12 +165,12 @@ namespace Microsoft.Azure.WebJobs.Host
         // TODO: For now we assume that the server and client clocks are in sync. 
         // However, The clocks can be out of sync. A trick to work around this could be to create a file on server
         // and use it's creation timestamp as a hint.
-        private DateTime GetCurrentServerTimeUtc()
+        private static DateTime GetCurrentServerTimeUtc()
         {
             return DateTime.UtcNow;
         }
 
-        private List<LockFileInfo> GetLockInfo(string account, string lockId)
+        private static List<LockFileInfo> GetLockInfo(string account, string lockId)
         {
             var lockDirectory = GetLockDirectoryPath(account, lockId);
 
@@ -192,7 +193,7 @@ namespace Microsoft.Azure.WebJobs.Host
             return lockFiles;
         }
 
-        private LockFileInfo GetLockFileInfo(string lockFilePath)
+        private static LockFileInfo GetLockFileInfo(string lockFilePath)
         {
             var lastWriteTimeUtc = File.GetLastWriteTimeUtc(lockFilePath);
 
@@ -206,51 +207,53 @@ namespace Microsoft.Azure.WebJobs.Host
 
             return LockFileInfo.Create(lockFilePath, lastWriteTimeUtc, contentDict);
         }
-    }
 
-    internal class FileLockHandle : IDistributedLock
-    {
-        public FileLockHandle(string account, string lockId, TimeSpan lockPeriod, string lockFilePath)
+        internal class FileLockHandle : IDistributedLock
         {
-            Account = account;
-            LockId = lockId;
-            LockPeriod = lockPeriod;
-            LockFilePath = lockFilePath;
-        }
-
-        public string Account { get; private set; }
-
-        public string LockId { get; private set; }
-
-        public TimeSpan LockPeriod { get; private set; }
-
-        public string LockFilePath { get; private set; }
-    }
-
-    // Info about the lock file associated with the client's lock 
-    internal class LockFileInfo
-    {
-        public string FilePath { get; private set; }
-
-        public DateTime LastWriteTimeUtc { get; private set; }
-
-        public int LockDuration { get; private set; }
-
-        public string Owner { get; private set; }
-
-        public DateTime ExpiryTimeUtc => LastWriteTimeUtc.AddSeconds(LockDuration);
-
-        public static LockFileInfo Create(string filePath, DateTime lastWriteTimeUtc, JObject lockFileContent)
-        {
-            return new LockFileInfo
+            public FileLockHandle(string account, string lockId, TimeSpan lockPeriod, string lockFilePath)
             {
-                FilePath = filePath,
-                LastWriteTimeUtc = lastWriteTimeUtc,
-                LockDuration = (int)lockFileContent["duration"],
-                Owner = (string)lockFileContent["owner"],
-            };
+                Account = account;
+                LockId = lockId;
+                LockPeriod = lockPeriod;
+                LockFilePath = lockFilePath;
+            }
+
+            public string Account { get; private set; }
+
+            public string LockId { get; private set; }
+
+            public TimeSpan LockPeriod { get; private set; }
+
+            public string LockFilePath { get; private set; }
         }
 
-        private LockFileInfo() { }
+        // Info about the lock file associated with the client's lock 
+        internal class LockFileInfo
+        {
+            private LockFileInfo()
+            {
+            }
+
+            public string FilePath { get; private set; }
+
+            public DateTime LastWriteTimeUtc { get; private set; }
+
+            public int LockDuration { get; private set; }
+
+            public string Owner { get; private set; }
+
+            public DateTime ExpiryTimeUtc => LastWriteTimeUtc.AddSeconds(LockDuration);
+
+            public static LockFileInfo Create(string filePath, DateTime lastWriteTimeUtc, JObject lockFileContent)
+            {
+                return new LockFileInfo
+                {
+                    FilePath = filePath,
+                    LastWriteTimeUtc = lastWriteTimeUtc,
+                    LockDuration = (int)lockFileContent["duration"],
+                    Owner = (string)lockFileContent["owner"],
+                };
+            }
+        }
     }
 }
