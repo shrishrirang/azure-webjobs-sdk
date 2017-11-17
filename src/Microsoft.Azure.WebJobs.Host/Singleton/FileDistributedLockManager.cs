@@ -94,7 +94,10 @@ namespace Microsoft.Azure.WebJobs.Host
         [SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "context")]
         private static string GetFileShare(string account)
         {
-            // FIXME
+            if (string.IsNullOrEmpty(account))
+            {
+                acconut = "default";
+            }
             return Path.Combine(Environment.GetEnvironmentVariable("HOME"), "lease", account);
         }
 
