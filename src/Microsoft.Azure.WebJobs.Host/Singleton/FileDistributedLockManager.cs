@@ -96,7 +96,7 @@ namespace Microsoft.Azure.WebJobs.Host
         {
             if (string.IsNullOrEmpty(account))
             {
-                acconut = "default";
+                account = "default";
             }
             return Path.Combine(Environment.GetEnvironmentVariable("HOME"), "lease", account);
         }
